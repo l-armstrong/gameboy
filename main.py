@@ -45,6 +45,15 @@ class Z80(object):
         self._r_m = 0
         self._r_t = 0
     
+    def reset(self):
+        # Reset routine to restart CPU
+        self._clock_t = self._clock_m = 0
+        self._r_c = self._r_b = self._r_a = 0
+        self._r_h = self._r_e = self._r_d = 0
+        self._r_f = self._r_l = 0
+        self._sp = self._pc = 0
+        self._r_t = self._r_m = 0
+    
     def nop(self):
         # NOP
         # 1 M-cycle
