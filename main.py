@@ -153,7 +153,9 @@ class MMU(object):
         self.write_byte(addr+1, val >> 8)
 
 class Z80(object):
-    def __init__(self):
+    def __init__(self, mmu: MMU):
+        # Memory to interface with
+        self.mmu = mmu
         # Time clock
         # m and two are two clocks
         self._clock_m = 0
@@ -267,6 +269,23 @@ class Z80(object):
     def ldrr_ah(self): self.ldrr_nn("_r_a", "_r_h")
     def ldrr_al(self): self.ldrr_nn("_r_a", "_r_l")
     def ldrr_aa(self): self.ldrr_nn("_r_a", "_r_a")
+
+    # Load to the 8-bit register r, the immediate data n.
+    def ldr_n(self, reg1):
+        setattr(self, reg1, self.mmu.read_byte(self._pc))
+        self._pc += 1
+        # 2 M-Cycle
+        self._r_m = 2
+        # 8 T-Cycles
+        self._r_t = 8
+    
+    def ldr_b(self): self.ldr_n("_r_b")
+    def ldr_c(self): self.ldr_n("_r_c")
+    def ldr_d(self): self.ldr_n("_r_d")
+    def ldr_e(self): self.ldr_n("_r_e")
+    def ldr_h(self): self.ldr_n("_r_h")
+    def ldr_l(self): self.ldr_n("_r_l")
+    def ldr_a(self): self.ldr_n("_r_a")
 
     
     def add_e_a(self):
