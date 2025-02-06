@@ -205,109 +205,67 @@ class Z80(object):
         self._r_m = 1
         self._r_t = 4
     
-    # load byte from reg b to reg b
+    # load byte to reg b from reg "X"
     def ldrr_bb(self): self.ldrr_nn("_r_b", "_r_b")
-    # load byte from reg b to reg c
     def ldrr_bc(self): self.ldrr_nn("_r_b", "_r_c")
-    # load byte from reg b to reg d
     def ldrr_bd(self): self.ldrr_nn("_r_b", "_r_d")
-    # load byte from reg b to reg e
     def ldrr_be(self): self.ldrr_nn("_r_b", "_r_e")
-    # load byte from reg b to reg h
     def ldrr_bh(self): self.ldrr_nn("_r_b", "_r_h")
-    # load byte from reg b to reg l
     def ldrr_bl(self): self.ldrr_nn("_r_b", "_r_l")
-    # load byte from reg b to reg a
     def ldrr_ba(self): self.ldrr_nn("_r_b", "_r_a")
 
-    # load byte from reg c to reg b
+    # load byte to reg c from reg "X"
     def ldrr_cb(self): self.ldrr_nn("_r_c", "_r_b")
-    # load byte from reg c to reg c
     def ldrr_cc(self): self.ldrr_nn("_r_c", "_r_c")
-    # load byte from reg c to reg d
     def ldrr_cd(self): self.ldrr_nn("_r_c", "_r_d")
-    # load byte from reg c to reg e
     def ldrr_ce(self): self.ldrr_nn("_r_c", "_r_e")
-    # load byte from reg c to reg h
     def ldrr_ch(self): self.ldrr_nn("_r_c", "_r_h")
-    # load byte from reg c to reg l
     def ldrr_cl(self): self.ldrr_nn("_r_c", "_r_l")
-    # load byte from reg c to reg a
     def ldrr_ca(self): self.ldrr_nn("_r_c", "_r_a")
 
-    # load byte from reg d to reg b
+    # load byte to reg d from reg "X"
     def ldrr_db(self): self.ldrr_nn("_r_d", "_r_b")
-    # load byte from reg d to reg c
     def ldrr_dc(self): self.ldrr_nn("_r_d", "_r_c")
-    # load byte from reg d to reg d
     def ldrr_dd(self): self.ldrr_nn("_r_d", "_r_d")
-    # load byte from reg d to reg e
     def ldrr_de(self): self.ldrr_nn("_r_d", "_r_e")
-    # load byte from reg d to reg h
     def ldrr_dh(self): self.ldrr_nn("_r_d", "_r_h")
-    # load byte from reg d to reg l
     def ldrr_dl(self): self.ldrr_nn("_r_d", "_r_l")
-    # load byte from reg d to reg a
     def ldrr_da(self): self.ldrr_nn("_r_d", "_r_a")
 
-    # load byte from reg e to reg b
+    # load byte to reg e from reg "X"
     def ldrr_eb(self): self.ldrr_nn("_r_e", "_r_b")
-    # load byte from reg e to reg c
     def ldrr_ec(self): self.ldrr_nn("_r_e", "_r_c")
-    # load byte from reg e to reg d
     def ldrr_ed(self): self.ldrr_nn("_r_e", "_r_d")
-    # load byte from reg e to reg e
     def ldrr_ee(self): self.ldrr_nn("_r_e", "_r_e")
-    # load byte from reg e to reg h
     def ldrr_eh(self): self.ldrr_nn("_r_e", "_r_h")
-    # load byte from reg e to reg l
     def ldrr_el(self): self.ldrr_nn("_r_e", "_r_l")
-    # load byte from reg e to reg a
     def ldrr_ea(self): self.ldrr_nn("_r_e", "_r_a")
 
-    # load byte from reg h to reg b
+    # load byte to reg h from reg "X"
     def ldrr_hb(self): self.ldrr_nn("_r_h", "_r_b")
-    # load byte from reg h to reg c
     def ldrr_hc(self): self.ldrr_nn("_r_h", "_r_c")
-    # load byte from reg h to reg d
     def ldrr_hd(self): self.ldrr_nn("_r_h", "_r_d")
-    # load byte from reg h to reg e
     def ldrr_he(self): self.ldrr_nn("_r_h", "_r_e")
-    # load byte from reg h to reg h
     def ldrr_hh(self): self.ldrr_nn("_r_h", "_r_h")
-    # load byte from reg h to reg l
     def ldrr_hl(self): self.ldrr_nn("_r_h", "_r_l")
-    # load byte from reg h to reg a
     def ldrr_ha(self): self.ldrr_nn("_r_h", "_r_a")
 
-    # load byte from reg l to reg b
+    # load byte to reg l from reg "X"
     def ldrr_lb(self): self.ldrr_nn("_r_l", "_r_b")
-    # load byte from reg l to reg c
     def ldrr_lc(self): self.ldrr_nn("_r_l", "_r_c")
-    # load byte from reg l to reg d
     def ldrr_ld(self): self.ldrr_nn("_r_l", "_r_d")
-    # load byte from reg l to reg e
     def ldrr_le(self): self.ldrr_nn("_r_l", "_r_e")
-    # load byte from reg l to reg h
     def ldrr_lh(self): self.ldrr_nn("_r_l", "_r_h")
-    # load byte from reg l to reg l
     def ldrr_ll(self): self.ldrr_nn("_r_l", "_r_l")
-    # load byte from reg l to reg a
     def ldrr_la(self): self.ldrr_nn("_r_l", "_r_a")
 
-    # load byte from reg a to reg b
+    # load byte to reg a from reg "X"
     def ldrr_ab(self): self.ldrr_nn("_r_a", "_r_b")
-    # load byte from reg a to reg c
     def ldrr_ac(self): self.ldrr_nn("_r_a", "_r_c")
-    # load byte from reg a to reg d
     def ldrr_ad(self): self.ldrr_nn("_r_a", "_r_d")
-    # load byte from reg a to reg e
     def ldrr_ae(self): self.ldrr_nn("_r_a", "_r_e")
-    # load byte from reg a to reg h
     def ldrr_ah(self): self.ldrr_nn("_r_a", "_r_h")
-    # load byte from reg a to reg l
     def ldrr_al(self): self.ldrr_nn("_r_a", "_r_l")
-    # load byte from reg a to reg a
     def ldrr_aa(self): self.ldrr_nn("_r_a", "_r_a")
 
     
