@@ -317,6 +317,13 @@ class Z80(object):
     def ldhl_l(self): self.ldhl_r("_r_l")
     def ldhl_a(self): self.ldhl_r("_r_a")
 
+    # Load to the absolute address specified by the 16-bit register HL, the immediate data n
+    def ldhl_n(self):
+        self.mmu.write_byte((self._r_h << 8) + self._r_l, self.mmu.read_byte(self._pc))
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+
     def add_e_a(self):
         # Add register e to register a
         self._r_a += self._r_e
