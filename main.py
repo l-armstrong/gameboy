@@ -336,6 +336,71 @@ class Z80(object):
         self._r_m = 2
         self._r_t = 8
 
+    # Load to the absolute address specified by the 16-bit register BC, data from the 8-bit A register
+    def ldbc_a(self):
+        self.mmu.write_byte((self._r_b << 8) + self._r_c, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the absolute address specified by the 16-bit register DE, data from the 8-bit A register
+    def ldde_a(self):
+        self.mmu.write_byte((self._r_d << 8) + self._r_e, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit operand nn.
+    def lda_nn(self):
+        self._r_a = self.mmu.read_word(self._pc)
+        self._pc += 2
+        self._r_m = 4
+        self._r_t = 16
+
+    # Load to the absolute address specified by the 16-bit operand nn, data from the 8-bit A register.
+    def ldnn_a(self):
+        self.mmu.write_byte(self.mmu.read_word(self._pc), self._r_a)
+        self._pc += 2
+        self._r_m = 4
+        self._r_t = 16
+    
+    # Load to the 8-bit A register, data from the address specified by the 8-bit C register. The full
+    # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+    # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF
+    def ldha_c(self):
+        self._r_a = self.mmu.read_byte(0xFF00 + self._r_c)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the address specified by the 8-bit C register, data from the 8-bit A register. The full
+    # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+    # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
+    def ldhc_a(self):
+        self.mmu.write_byte(0xFF00 + self._r_C, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the 8-bit A register, data from the address specified by the 8-bit immediate data n. The
+    # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+    # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+    def ldha_n(self):
+        self._r_a = self.mmu.read_byte(0xFF00 + self.mmu.read_byte(self._pc))
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+    
+    # Load to the address specified by the 8-bit immediate data n, data from the 8-bit A register. The
+    # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+    # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+    def ldhn_a(self):
+        self.mmu.write_byte(0xFF00 + self.mmu.read_byte(self._pc), self._r_a)
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
+    # The value of HL is decremented after the memory read.
+    def lda_hl(self):
+        pass
+
     def add_e_a(self):
         # Add register e to register a
         self._r_a += self._r_e
