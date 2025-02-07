@@ -153,7 +153,9 @@ class MMU(object):
         self.write_byte(addr+1, val >> 8)
 
 class Z80(object):
-    def __init__(self):
+    def __init__(self, mmu: MMU):
+        # Memory to interface with
+        self.mmu = mmu
         # Time clock
         # m and two are two clocks
         self._clock_m = 0
@@ -205,112 +207,200 @@ class Z80(object):
         self._r_m = 1
         self._r_t = 4
     
-    # load byte from reg b to reg b
+    # load byte to reg b from reg "X"
     def ldrr_bb(self): self.ldrr_nn("_r_b", "_r_b")
-    # load byte from reg b to reg c
     def ldrr_bc(self): self.ldrr_nn("_r_b", "_r_c")
-    # load byte from reg b to reg d
     def ldrr_bd(self): self.ldrr_nn("_r_b", "_r_d")
-    # load byte from reg b to reg e
     def ldrr_be(self): self.ldrr_nn("_r_b", "_r_e")
-    # load byte from reg b to reg h
     def ldrr_bh(self): self.ldrr_nn("_r_b", "_r_h")
-    # load byte from reg b to reg l
     def ldrr_bl(self): self.ldrr_nn("_r_b", "_r_l")
-    # load byte from reg b to reg a
     def ldrr_ba(self): self.ldrr_nn("_r_b", "_r_a")
 
-    # load byte from reg c to reg b
+    # load byte to reg c from reg "X"
     def ldrr_cb(self): self.ldrr_nn("_r_c", "_r_b")
-    # load byte from reg c to reg c
     def ldrr_cc(self): self.ldrr_nn("_r_c", "_r_c")
-    # load byte from reg c to reg d
     def ldrr_cd(self): self.ldrr_nn("_r_c", "_r_d")
-    # load byte from reg c to reg e
     def ldrr_ce(self): self.ldrr_nn("_r_c", "_r_e")
-    # load byte from reg c to reg h
     def ldrr_ch(self): self.ldrr_nn("_r_c", "_r_h")
-    # load byte from reg c to reg l
     def ldrr_cl(self): self.ldrr_nn("_r_c", "_r_l")
-    # load byte from reg c to reg a
     def ldrr_ca(self): self.ldrr_nn("_r_c", "_r_a")
 
-    # load byte from reg d to reg b
+    # load byte to reg d from reg "X"
     def ldrr_db(self): self.ldrr_nn("_r_d", "_r_b")
-    # load byte from reg d to reg c
     def ldrr_dc(self): self.ldrr_nn("_r_d", "_r_c")
-    # load byte from reg d to reg d
     def ldrr_dd(self): self.ldrr_nn("_r_d", "_r_d")
-    # load byte from reg d to reg e
     def ldrr_de(self): self.ldrr_nn("_r_d", "_r_e")
-    # load byte from reg d to reg h
     def ldrr_dh(self): self.ldrr_nn("_r_d", "_r_h")
-    # load byte from reg d to reg l
     def ldrr_dl(self): self.ldrr_nn("_r_d", "_r_l")
-    # load byte from reg d to reg a
     def ldrr_da(self): self.ldrr_nn("_r_d", "_r_a")
 
-    # load byte from reg e to reg b
+    # load byte to reg e from reg "X"
     def ldrr_eb(self): self.ldrr_nn("_r_e", "_r_b")
-    # load byte from reg e to reg c
     def ldrr_ec(self): self.ldrr_nn("_r_e", "_r_c")
-    # load byte from reg e to reg d
     def ldrr_ed(self): self.ldrr_nn("_r_e", "_r_d")
-    # load byte from reg e to reg e
     def ldrr_ee(self): self.ldrr_nn("_r_e", "_r_e")
-    # load byte from reg e to reg h
     def ldrr_eh(self): self.ldrr_nn("_r_e", "_r_h")
-    # load byte from reg e to reg l
     def ldrr_el(self): self.ldrr_nn("_r_e", "_r_l")
-    # load byte from reg e to reg a
     def ldrr_ea(self): self.ldrr_nn("_r_e", "_r_a")
 
-    # load byte from reg h to reg b
+    # load byte to reg h from reg "X"
     def ldrr_hb(self): self.ldrr_nn("_r_h", "_r_b")
-    # load byte from reg h to reg c
     def ldrr_hc(self): self.ldrr_nn("_r_h", "_r_c")
-    # load byte from reg h to reg d
     def ldrr_hd(self): self.ldrr_nn("_r_h", "_r_d")
-    # load byte from reg h to reg e
     def ldrr_he(self): self.ldrr_nn("_r_h", "_r_e")
-    # load byte from reg h to reg h
     def ldrr_hh(self): self.ldrr_nn("_r_h", "_r_h")
-    # load byte from reg h to reg l
     def ldrr_hl(self): self.ldrr_nn("_r_h", "_r_l")
-    # load byte from reg h to reg a
     def ldrr_ha(self): self.ldrr_nn("_r_h", "_r_a")
 
-    # load byte from reg l to reg b
+    # load byte to reg l from reg "X"
     def ldrr_lb(self): self.ldrr_nn("_r_l", "_r_b")
-    # load byte from reg l to reg c
     def ldrr_lc(self): self.ldrr_nn("_r_l", "_r_c")
-    # load byte from reg l to reg d
     def ldrr_ld(self): self.ldrr_nn("_r_l", "_r_d")
-    # load byte from reg l to reg e
     def ldrr_le(self): self.ldrr_nn("_r_l", "_r_e")
-    # load byte from reg l to reg h
     def ldrr_lh(self): self.ldrr_nn("_r_l", "_r_h")
-    # load byte from reg l to reg l
     def ldrr_ll(self): self.ldrr_nn("_r_l", "_r_l")
-    # load byte from reg l to reg a
     def ldrr_la(self): self.ldrr_nn("_r_l", "_r_a")
 
-    # load byte from reg a to reg b
+    # load byte to reg a from reg "X"
     def ldrr_ab(self): self.ldrr_nn("_r_a", "_r_b")
-    # load byte from reg a to reg c
     def ldrr_ac(self): self.ldrr_nn("_r_a", "_r_c")
-    # load byte from reg a to reg d
     def ldrr_ad(self): self.ldrr_nn("_r_a", "_r_d")
-    # load byte from reg a to reg e
     def ldrr_ae(self): self.ldrr_nn("_r_a", "_r_e")
-    # load byte from reg a to reg h
     def ldrr_ah(self): self.ldrr_nn("_r_a", "_r_h")
-    # load byte from reg a to reg l
     def ldrr_al(self): self.ldrr_nn("_r_a", "_r_l")
-    # load byte from reg a to reg a
     def ldrr_aa(self): self.ldrr_nn("_r_a", "_r_a")
 
+    # Load to the 8-bit register r, the immediate data n.
+    def ldr_n(self, reg1):
+        setattr(self, reg1, self.mmu.read_byte(self._pc))
+        self._pc += 1
+        # 2 M-Cycle
+        self._r_m = 2
+        # 8 T-Cycles
+        self._r_t = 8
     
+    def ldr_b(self): self.ldr_n("_r_b")
+    def ldr_c(self): self.ldr_n("_r_c")
+    def ldr_d(self): self.ldr_n("_r_d")
+    def ldr_e(self): self.ldr_n("_r_e")
+    def ldr_h(self): self.ldr_n("_r_h")
+    def ldr_l(self): self.ldr_n("_r_l")
+    def ldr_a(self): self.ldr_n("_r_a")
+
+    # Load to the 8-bit register r, data from the absolute address specified 
+    #   by the 16-bit register HL
+    def ldr_hl(self, reg):
+        setattr(self, reg, self.mmu.read_byte((self._r_h << 8) + self._r_l))
+        self._r_m = 2
+        self._r_t = 8
+    
+    def ldb_hl(self): self.ldr_hl("_r_b")
+    def ldc_hl(self): self.ldr_hl("_r_c")
+    def ldd_hl(self): self.ldr_hl("_r_d")
+    def lde_hl(self): self.ldr_hl("_r_e")
+    def ldh_hl(self): self.ldr_hl("_r_h")
+    def ldl_hl(self): self.ldr_hl("_r_l")
+    def lda_hl(self): self.ldr_hl("_r_a")
+
+    # Load to the absolute address specified by the 16-bit register HL, data 
+    #   from the 8-bit register r. 
+    def ldhl_r(self, reg):
+        self.mmu.write_byte((self._r_h << 8) + self._r_l, getattr(self, reg))
+        self._r_m = 2
+        self._r_t = 8
+    
+    def ldhl_b(self): self.ldhl_r("_r_b")
+    def ldhl_c(self): self.ldhl_r("_r_c")
+    def ldhl_d(self): self.ldhl_r("_r_d")
+    def ldhl_e(self): self.ldhl_r("_r_e")
+    def ldhl_h(self): self.ldhl_r("_r_h")
+    def ldhl_l(self): self.ldhl_r("_r_l")
+    def ldhl_a(self): self.ldhl_r("_r_a")
+
+    # Load to the absolute address specified by the 16-bit register HL, the immediate data n
+    def ldhl_n(self):
+        self.mmu.write_byte((self._r_h << 8) + self._r_l, self.mmu.read_byte(self._pc))
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+    
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register BC.
+    def lda_bc(self):
+        self._r_a = self.mmu.read_byte((self._r_b << 8) + self._r_c)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register DE.
+    def lda_de(self):
+        self._r_a = self.mmu.read_byte((self._r_d << 8) + self._r_e)
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the absolute address specified by the 16-bit register BC, data from the 8-bit A register
+    def ldbc_a(self):
+        self.mmu.write_byte((self._r_b << 8) + self._r_c, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the absolute address specified by the 16-bit register DE, data from the 8-bit A register
+    def ldde_a(self):
+        self.mmu.write_byte((self._r_d << 8) + self._r_e, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit operand nn.
+    def lda_nn(self):
+        self._r_a = self.mmu.read_word(self._pc)
+        self._pc += 2
+        self._r_m = 4
+        self._r_t = 16
+
+    # Load to the absolute address specified by the 16-bit operand nn, data from the 8-bit A register.
+    def ldnn_a(self):
+        self.mmu.write_byte(self.mmu.read_word(self._pc), self._r_a)
+        self._pc += 2
+        self._r_m = 4
+        self._r_t = 16
+    
+    # Load to the 8-bit A register, data from the address specified by the 8-bit C register. The full
+    # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+    # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF
+    def ldha_c(self):
+        self._r_a = self.mmu.read_byte(0xFF00 + self._r_c)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the address specified by the 8-bit C register, data from the 8-bit A register. The full
+    # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+    # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
+    def ldhc_a(self):
+        self.mmu.write_byte(0xFF00 + self._r_C, self._r_a)
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the 8-bit A register, data from the address specified by the 8-bit immediate data n. The
+    # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+    # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+    def ldha_n(self):
+        self._r_a = self.mmu.read_byte(0xFF00 + self.mmu.read_byte(self._pc))
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+    
+    # Load to the address specified by the 8-bit immediate data n, data from the 8-bit A register. The
+    # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+    # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+    def ldhn_a(self):
+        self.mmu.write_byte(0xFF00 + self.mmu.read_byte(self._pc), self._r_a)
+        self._pc += 1
+        self._r_m = 3
+        self._r_t = 12
+
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
+    # The value of HL is decremented after the memory read.
+    def lda_hl(self):
+        pass
+
     def add_e_a(self):
         # Add register e to register a
         self._r_a += self._r_e
