@@ -323,6 +323,18 @@ class Z80(object):
         self._pc += 1
         self._r_m = 3
         self._r_t = 12
+    
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register BC.
+    def lda_bc(self):
+        self._r_a = self.mmu.read_byte((self._r_b << 8) + self._r_c)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register DE.
+    def lda_de(self):
+        self._r_a = self.mmu.read_byte((self._r_d << 8) + self._r_e)
+        self._r_m = 2
+        self._r_t = 8
 
     def add_e_a(self):
         # Add register e to register a
