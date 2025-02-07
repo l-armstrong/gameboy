@@ -350,7 +350,7 @@ class Z80(object):
 
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit operand nn.
     def lda_nn(self):
-        self._r_a = self.mmu.read_word(self._pc)
+        self._r_a = self.mmu.read_byte(self.mmu.read_word(self._pc))
         self._pc += 2
         self._r_m = 4
         self._r_t = 16
@@ -467,16 +467,3 @@ class Z80(object):
         self._r_m = 3
         # 12 t-states
         self._r_t = 12
-    
-    def lda_nn(self, mmu: MMU):
-        # Read a byte from address into reg a
-        # read word
-        addr = mmu.read_word(self._pc)
-        # advance pc by 2 bytes
-        self._pc += 2
-        # read byte from address into reg a
-        self._r_a = mmu.read_byte(addr)
-        # 4 M-cycles 
-        self._r_m = 4
-        # 16 t-states
-        self._r_t = 16
