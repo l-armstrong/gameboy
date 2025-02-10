@@ -1,5 +1,5 @@
 class MMU(object):
-    def __init__(self):
+    def __init__(self, rom):
         # BIOS code is run upon CPU start
         self._bios = [
             0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
@@ -22,7 +22,7 @@ class MMU(object):
         # BIOS is removed when ran 
         self._running_bios = True
 
-        self._rom = []
+        self._rom = self.load(rom)
         self._wram = []
         self._eram = []
         self._zram = []
@@ -398,8 +398,129 @@ class Z80(object):
 
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
     # The value of HL is decremented after the memory read.
-    def lda_hl(self):
-        pass
+    def lda_hl_dec(self):
+        self._r_a = self.mmu.read_byte((self._r_h << 8) + self._r_l)
+        self._r_l = (self._r_l - 1) & 0xFF
+        # check for underflow
+        if self._r_l == 255:
+            self._r_h = (self._r_h - 1) & 0xFF
+        self._r_m = 2
+        self._r_t = 8
+    
+    # Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
+    # The value of HL is decremented after the memory write.
+    def ldhl_a_dec(self):
+        self.mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
+        self._r_l = (self._r_l - 1) & 0xFF
+        # check for underflow
+        if self._r_l == 255:
+            self._r_h = (self._r_h - 1) & 0xFF
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
+    # The value of HL is incremented after the memory read
+    def lda_hl_inc(self):
+        self._r_a = self.mmu.read_byte((self._r_h << 8) + self._r_l)
+        self._r_l = (self._r_l + 1) & 0xFF
+        # check for overflow
+        if self._r_l == 0:
+            self._r_h = (self._r_h + 1) & 0xFF
+        self._r_m = 2
+        self._r_t = 8
+
+    # Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
+    # The value of HL is decremented after the memory write.
+    def ldhl_a_inc(self):
+        self.mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
+        self._r_l = (self._r_l + 1) & 0xFF
+        # check for overflow
+        if self._r_l == 255:
+            self._r_h = (self._r_h + 1) & 0xFF
+        self._r_m = 2
+        self._r_t = 8    
+
+    # Load to the 16-bit register rr, the immediate 16-bit data nn.
+    def ldrr_nn(self, lower_reg, upper_reg):
+        setattr(self, lower_reg, self.mmu.read_byte(self._pc))
+        setattr(self, upper_reg, self.mmu.read_byte(self._pc + 1))
+        self._pc += 2
+        self._r_m = 3
+        self._r_t = 12
+    
+    def ldrr_bc(self): self.ldrr_nn("_r_c", "_r_b")
+    def ldrr_de(self): self.ldrr_nn("_r_e", "_r_d")
+    def ldrr_hl(self): self.ldrr_nn("_r_l", "_r_h")
+
+    def ldrr_sp(self):
+        self._sp = self.mmu.read_word(self._pc)
+        self._pc += 2
+        self._r_m = 3
+        self._r_t = 12
+    
+    # Load to the absolute address specified by the 16-bit operand nn, data from the 16-bit SP register
+    def ld_16_pc(self):
+        nn = self.mmu.read_word(self._pc)
+        self._pc += 2
+        self.mmu.write_word(nn, self._sp)
+        self._r_m = 5
+        self._r_t = 20
+        
+    # Load to the 16-bit SP register, data from the 16-bit HL register.
+    def ld_sp_hl(self):
+        # TODO: check if this is correct
+        self._sp = self.mmu.read_word((self._r_h << 8) + self._r_l)
+        self._r_m = 2
+        self._r_t = 8
+    
+    # TODO: remove this
+    # def ldhl_r(self, reg):
+    #     self.mmu.write_byte((self._r_h << 8) + self._r_l, getattr(self, reg))
+    #     self._r_m = 2
+    #     self._r_t = 8
+
+    # Push to the stack memory, data from the 16-bit register rr
+    def push_rr(self, upper, lower):
+        self._sp -= 1
+        self.mmu.write_byte(self._sp, getattr(self, upper))
+        self._sp -= 1
+        self.mmu.write_byte(self._sp, getattr(self, lower))
+        # TODO: check if this is cycle accurate
+        self._r_m = 4
+        self._r_t = 16
+    
+    def push_bc(self): self.push_rr("_r_b", "_r_c")
+    def push_de(self): self.push_rr("_r_d", "_r_e")
+    def push_hl(self): self.push_rr("_r_h", "_r_l")
+    def push_af(self): self.push_rr("_r_a", "_r_f")
+
+    # Pops to the 16-bit register rr, data from the stack memory.
+    def pop_rr(self, upper, lower):
+        setattr(self, lower, self.mmu.read_byte(self._sp))
+        self._sp += 1
+        setattr(self, upper, self.mmu.read_byte(self._sp))
+        self._sp += 1
+        self._r_m = 3
+        self._r_t = 12
+
+    def pop_bc(self): self.pop_rr("_r_b", "_r_c")
+    def pop_de(self): self.pop_rr("_r_d", "_r_e")
+    def pop_hl(self): self.pop_rr("_r_h", "_r_l")
+    def pop_af(self): self.pop_rr("_r_a", "_r_f")
+    
+    # Load to the HL register, 16-bit data calculated by adding the signed 8-bit operand e to the 16-
+    #   bit value of the SP register.
+    def ldhl_sp_e(self):
+        e = self.mmu.read_byte(self._pc)
+        if e > 127: e = -((~e + 1) & 255)
+        e += self._sp
+        self._r_h = (e >> 8) & 255
+        self._r_l = (e & 255)
+        self._pc += 1
+        # TODO: update flags
+        self._r_m = 3
+        self._r_t = 12
+
 
     def add_e_a(self):
         # Add register e to register a
@@ -437,33 +558,12 @@ class Z80(object):
         self._r_m = 1
         # 4 t-states
         self._r_t = 4
-    
-    def push_bc(self, mmu: MMU):
-        # push reg b and c on stack
-        # decrement sp to add reg b
-        self._sp -= 1
-        # write b to stack
-        mmu.write_byte(self._sp, self._r_b)
-        # decrement sp to add reg c
-        self._sp -= 1
-        # write c to stack
-        mmu.write_byte(self._sp, self._r_c)
-        # 3 M-cycles
-        self._r_m = 3
-        # 12 t-states
-        self._r_t = 12
-    
-    def pop_hl(self, mmu: MMU):
-        # pop values into reg h and l off stack
-        # read in l
-        self._r_l = mmu.read_byte(self._sp)
-        # move up stack
-        self._sp += 1
-        # read in h
-        self._r_h = mmu.read_byte(self._sp)
-        # move up stack
-        self._sp += 1
-        # 3 M-cycles
-        self._r_m = 3
-        # 12 t-states
-        self._r_t = 12
+
+if __name__ == '__main__':
+    mmu = MMU()
+    cpu = Z80()
+    # CPU.mmu.load('Tetris.gb')
+
+    while True:
+        pass
+
