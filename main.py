@@ -21,17 +21,16 @@ class MMU(object):
         ]
         # BIOS is removed when ran 
         self._running_bios = True
-
-        self._rom = self.load(rom)
-        self._wram = []
-        self._eram = []
-        self._zram = []
+        
+        self.load(rom)
+        self._wram = [0] * (8192)
+        self._eram = [0] * (8192)
+        self._zram = [0] * (128) # Off by one?
     
     def load(self, rom):
         with open(rom, 'rb') as program:
             self._rom = program.read()
 
-    
     def read_byte(self, addr):
         match addr & 0xF000:
             # bios 
@@ -40,8 +39,8 @@ class MMU(object):
                     if addr < 0x100:
                       return self._bios[addr]
                     # TODO: comeback and fixed this
-                    elif self._pc:
-                        pass
+                    elif z80._pc == 0x100:
+                        self._running_bios = False
                 return self._rom[addr]  
             # ROM0
             case 0x1000 | 0x2000 | 0x3000:
@@ -144,7 +143,7 @@ class MMU(object):
                     # zero page
                     case 0xF00:
                         if addr > 0xFF7F:
-                            self._zram[addr&0xFF] = val
+                            self._zram[addr & 0x7F] = val
                         else:
                             pass 
 
@@ -153,9 +152,7 @@ class MMU(object):
         self.write_byte(addr+1, val >> 8)
 
 class Z80(object):
-    def __init__(self, mmu: MMU):
-        # Memory to interface with
-        self.mmu = mmu
+    def __init__(self):
         # Time clock
         # m and two are two clocks
         self._clock_m = 0
@@ -178,12 +175,18 @@ class Z80(object):
         # Half-carry (0x20): Set if the last operation result overflowed past 15
         # Carry (0x10): Set if the last operation result was over 255 for adding or under 0 for sub.
         self._r_f = 0
+        self.ZERO_FLAG = 0x80
+        self.SUB_FLAG = 0x40
+        self.HALF_CARRY_FLAG = 0x20
+        self.CARRY_FLAG = 0x10
         # 16 bit regs
         self._pc = 0
         self._sp = 0
         # Clock for last instruction
         self._r_m = 0
         self._r_t = 0
+        # TODO: should this be 1?
+        self._ime = 0
 
     def reset(self):
         # Reset routine to restart CPU
@@ -193,6 +196,7 @@ class Z80(object):
         self._r_f = self._r_l = 0
         self._sp = self._pc = 0
         self._r_t = self._r_m = 0
+        self._ime = 1
     
     def nop(self):
         # NOP
@@ -272,7 +276,7 @@ class Z80(object):
 
     # Load to the 8-bit register r, the immediate data n.
     def ldr_n(self, reg1):
-        setattr(self, reg1, self.mmu.read_byte(self._pc))
+        setattr(self, reg1, mmu.read_byte(self._pc))
         self._pc += 1
         # 2 M-Cycle
         self._r_m = 2
@@ -290,7 +294,7 @@ class Z80(object):
     # Load to the 8-bit register r, data from the absolute address specified 
     #   by the 16-bit register HL
     def ldr_hl(self, reg):
-        setattr(self, reg, self.mmu.read_byte((self._r_h << 8) + self._r_l))
+        setattr(self, reg, mmu.read_byte((self._r_h << 8) + self._r_l))
         self._r_m = 2
         self._r_t = 8
     
@@ -305,7 +309,7 @@ class Z80(object):
     # Load to the absolute address specified by the 16-bit register HL, data 
     #   from the 8-bit register r. 
     def ldhl_r(self, reg):
-        self.mmu.write_byte((self._r_h << 8) + self._r_l, getattr(self, reg))
+        mmu.write_byte((self._r_h << 8) + self._r_l, getattr(self, reg))
         self._r_m = 2
         self._r_t = 8
     
@@ -319,45 +323,45 @@ class Z80(object):
 
     # Load to the absolute address specified by the 16-bit register HL, the immediate data n
     def ldhl_n(self):
-        self.mmu.write_byte((self._r_h << 8) + self._r_l, self.mmu.read_byte(self._pc))
+        mmu.write_byte((self._r_h << 8) + self._r_l, mmu.read_byte(self._pc))
         self._pc += 1
         self._r_m = 3
         self._r_t = 12
     
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register BC.
     def lda_bc(self):
-        self._r_a = self.mmu.read_byte((self._r_b << 8) + self._r_c)
+        self._r_a = mmu.read_byte((self._r_b << 8) + self._r_c)
         self._r_m = 2
         self._r_t = 8
     
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register DE.
     def lda_de(self):
-        self._r_a = self.mmu.read_byte((self._r_d << 8) + self._r_e)
+        self._r_a = mmu.read_byte((self._r_d << 8) + self._r_e)
         self._r_m = 2
         self._r_t = 8
 
     # Load to the absolute address specified by the 16-bit register BC, data from the 8-bit A register
     def ldbc_a(self):
-        self.mmu.write_byte((self._r_b << 8) + self._r_c, self._r_a)
+        mmu.write_byte((self._r_b << 8) + self._r_c, self._r_a)
         self._r_m = 2
         self._r_t = 8
     
     # Load to the absolute address specified by the 16-bit register DE, data from the 8-bit A register
     def ldde_a(self):
-        self.mmu.write_byte((self._r_d << 8) + self._r_e, self._r_a)
+        mmu.write_byte((self._r_d << 8) + self._r_e, self._r_a)
         self._r_m = 2
         self._r_t = 8
 
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit operand nn.
     def lda_nn(self):
-        self._r_a = self.mmu.read_byte(self.mmu.read_word(self._pc))
+        self._r_a = mmu.read_byte(mmu.read_word(self._pc))
         self._pc += 2
         self._r_m = 4
         self._r_t = 16
 
     # Load to the absolute address specified by the 16-bit operand nn, data from the 8-bit A register.
     def ldnn_a(self):
-        self.mmu.write_byte(self.mmu.read_word(self._pc), self._r_a)
+        mmu.write_byte(mmu.read_word(self._pc), self._r_a)
         self._pc += 2
         self._r_m = 4
         self._r_t = 16
@@ -366,7 +370,7 @@ class Z80(object):
     # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
     # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF
     def ldha_c(self):
-        self._r_a = self.mmu.read_byte(0xFF00 + self._r_c)
+        self._r_a = mmu.read_byte(0xFF00 + self._r_c)
         self._r_m = 2
         self._r_t = 8
     
@@ -374,7 +378,7 @@ class Z80(object):
     # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
     # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
     def ldhc_a(self):
-        self.mmu.write_byte(0xFF00 + self._r_C, self._r_a)
+        mmu.write_byte(0xFF00 + self._r_c, self._r_a)
         self._r_m = 2
         self._r_t = 8
 
@@ -382,7 +386,7 @@ class Z80(object):
     # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
     # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
     def ldha_n(self):
-        self._r_a = self.mmu.read_byte(0xFF00 + self.mmu.read_byte(self._pc))
+        self._r_a = mmu.read_byte(0xFF00 + mmu.read_byte(self._pc))
         self._pc += 1
         self._r_m = 3
         self._r_t = 12
@@ -391,7 +395,7 @@ class Z80(object):
     # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
     # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
     def ldhn_a(self):
-        self.mmu.write_byte(0xFF00 + self.mmu.read_byte(self._pc), self._r_a)
+        mmu.write_byte(0xFF00 + mmu.read_byte(self._pc), self._r_a)
         self._pc += 1
         self._r_m = 3
         self._r_t = 12
@@ -399,7 +403,7 @@ class Z80(object):
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
     # The value of HL is decremented after the memory read.
     def lda_hl_dec(self):
-        self._r_a = self.mmu.read_byte((self._r_h << 8) + self._r_l)
+        self._r_a = mmu.read_byte((self._r_h << 8) + self._r_l)
         self._r_l = (self._r_l - 1) & 0xFF
         # check for underflow
         if self._r_l == 255:
@@ -410,7 +414,7 @@ class Z80(object):
     # Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
     # The value of HL is decremented after the memory write.
     def ldhl_a_dec(self):
-        self.mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
+        mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
         self._r_l = (self._r_l - 1) & 0xFF
         # check for underflow
         if self._r_l == 255:
@@ -421,7 +425,7 @@ class Z80(object):
     # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register HL.
     # The value of HL is incremented after the memory read
     def lda_hl_inc(self):
-        self._r_a = self.mmu.read_byte((self._r_h << 8) + self._r_l)
+        self._r_a = mmu.read_byte((self._r_h << 8) + self._r_l)
         self._r_l = (self._r_l + 1) & 0xFF
         # check for overflow
         if self._r_l == 0:
@@ -432,7 +436,7 @@ class Z80(object):
     # Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
     # The value of HL is decremented after the memory write.
     def ldhl_a_inc(self):
-        self.mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
+        mmu.write_byte((self._r_h << 8) + self._r_l, self._r_a)
         self._r_l = (self._r_l + 1) & 0xFF
         # check for overflow
         if self._r_l == 255:
@@ -442,8 +446,8 @@ class Z80(object):
 
     # Load to the 16-bit register rr, the immediate 16-bit data nn.
     def ldrr_nn(self, lower_reg, upper_reg):
-        setattr(self, lower_reg, self.mmu.read_byte(self._pc))
-        setattr(self, upper_reg, self.mmu.read_byte(self._pc + 1))
+        setattr(self, lower_reg, mmu.read_byte(self._pc))
+        setattr(self, upper_reg, mmu.read_byte(self._pc + 1))
         self._pc += 2
         self._r_m = 3
         self._r_t = 12
@@ -453,38 +457,32 @@ class Z80(object):
     def ldrr_hl(self): self.ldrr_nn("_r_l", "_r_h")
 
     def ldrr_sp(self):
-        self._sp = self.mmu.read_word(self._pc)
+        self._sp = mmu.read_word(self._pc)
         self._pc += 2
         self._r_m = 3
         self._r_t = 12
     
     # Load to the absolute address specified by the 16-bit operand nn, data from the 16-bit SP register
     def ld_16_pc(self):
-        nn = self.mmu.read_word(self._pc)
+        nn = mmu.read_word(self._pc)
         self._pc += 2
-        self.mmu.write_word(nn, self._sp)
+        mmu.write_word(nn, self._sp)
         self._r_m = 5
         self._r_t = 20
         
     # Load to the 16-bit SP register, data from the 16-bit HL register.
     def ld_sp_hl(self):
         # TODO: check if this is correct
-        self._sp = self.mmu.read_word((self._r_h << 8) + self._r_l)
+        self._sp = mmu.read_word((self._r_h << 8) + self._r_l)
         self._r_m = 2
         self._r_t = 8
-    
-    # TODO: remove this
-    # def ldhl_r(self, reg):
-    #     self.mmu.write_byte((self._r_h << 8) + self._r_l, getattr(self, reg))
-    #     self._r_m = 2
-    #     self._r_t = 8
 
     # Push to the stack memory, data from the 16-bit register rr
     def push_rr(self, upper, lower):
         self._sp -= 1
-        self.mmu.write_byte(self._sp, getattr(self, upper))
+        mmu.write_byte(self._sp, getattr(self, upper))
         self._sp -= 1
-        self.mmu.write_byte(self._sp, getattr(self, lower))
+        mmu.write_byte(self._sp, getattr(self, lower))
         # TODO: check if this is cycle accurate
         self._r_m = 4
         self._r_t = 16
@@ -496,9 +494,9 @@ class Z80(object):
 
     # Pops to the 16-bit register rr, data from the stack memory.
     def pop_rr(self, upper, lower):
-        setattr(self, lower, self.mmu.read_byte(self._sp))
+        setattr(self, lower, mmu.read_byte(self._sp))
         self._sp += 1
-        setattr(self, upper, self.mmu.read_byte(self._sp))
+        setattr(self, upper, mmu.read_byte(self._sp))
         self._sp += 1
         self._r_m = 3
         self._r_t = 12
@@ -511,7 +509,7 @@ class Z80(object):
     # Load to the HL register, 16-bit data calculated by adding the signed 8-bit operand e to the 16-
     #   bit value of the SP register.
     def ldhl_sp_e(self):
-        e = self.mmu.read_byte(self._pc)
+        e = mmu.read_byte(self._pc)
         if e > 127: e = -((~e + 1) & 255)
         e += self._sp
         self._r_h = (e >> 8) & 255
@@ -520,6 +518,88 @@ class Z80(object):
         # TODO: update flags
         self._r_m = 3
         self._r_t = 12
+
+    # Unconditional jump to the absolute address specified by the 16-bit immediate operand nn.
+    def jp_nn(self):
+        self._pc = mmu.read_word(self._pc)
+        self._r_m = 3
+        self._r_t = 12
+
+    # Performs a bitwise XOR operation between the 8-bit A register and the 8-bit register r, and
+    # stores the result back into the A register.
+    def xor_r(self, reg):
+        self._r_a = (self._r_a ^ getattr(self, reg)) & 255
+        self._r_f = 0
+        if not (self._r_a & 255):
+            self._r_f |= 0x80
+        self._r_m = 1
+        self._r_t = 4
+    
+    def xor_b(self): self.xor_r('_r_b')
+    def xor_c(self): self.xor_r('_r_c')
+    def xor_d(self): self.xor_r('_r_d')
+    def xor_e(self): self.xor_r('_r_e')
+    def xor_h(self): self.xor_r('_r_h')
+    def xor_l(self): self.xor_r('_r_l')
+    def xor_a(self): self.xor_r('_r_a')
+
+
+    # Decrements data in the 8-bit register r.
+    def dec_r(self, reg):
+        setattr(self, reg, (getattr(self, reg) - 1) & 255)
+        self._r_f = 0
+        # check for zero
+        if (not getattr(self, reg)):
+            self._r_f |= self.ZERO_FLAG
+        # set sub flag
+        self._r_f |= self.SUB_FLAG
+        self._r_m = 1
+        self._r_t = 4
+
+    def dec_b(self): self.dec_r('_r_b')
+    def dec_c(self): self.dec_r('_r_c')
+    def dec_d(self): self.dec_r('_r_d')
+    def dec_e(self): self.dec_r('_r_e')
+    def dec_h(self): self.dec_r('_r_h')
+    def dec_l(self): self.dec_r('_r_l')
+    def dec_a(self): self.dec_r('_r_a')
+
+    # Conditional jump to the relative address specified by the signed 8-bit operand e, depending on
+    # the condition cc.
+    # Note that the operand (relative address offset) is read even when the condition is false!
+    def jrcc_e(self):
+        e = mmu.read_byte(self._pc)
+        # convert unsinged 8-bit value to signed (-128 to 127)
+        if (e > 127): e = -((~e + 1) & 255)
+        self._pc += 1
+        self._r_m = 2
+        self._r_t = 8
+
+        if (not (self._r_f & self.ZERO_FLAG)):
+            self._pc += e
+            self._r_m += 1
+            self._r_t += 4
+    
+    # Disables interrupt handling by setting IME=0 and cancelling any scheduled effects of the EI
+    # instruction if any.
+    def di(self):
+        self._ime = 0
+        self._r_m = 1
+        self._r_t = 3
+
+    # Subtracts from the 8-bit A register, the immediate data n, and updates flags based on the result.
+    # This instruction is basically identical to SUB n, but does not update the A register.
+    def cpn(self):
+        c = self._r_a 
+        c -= mmu.read_byte(self._pc)
+        self._pc += 1
+        self._r_f = 0
+        self._r_f |= self.SUB_FLAG
+        if (c < 0): self._r_f |= self.CARRY_FLAG
+        # TODO: delete this?
+        c &= 255
+        self._r_m = 2
+        self._r_t = 8
 
 
     def add_e_a(self):
@@ -559,11 +639,311 @@ class Z80(object):
         # 4 t-states
         self._r_t = 4
 
+
 if __name__ == '__main__':
-    mmu = MMU()
-    cpu = Z80()
+    mmu = MMU('Tetris.gb')
+    z80 = Z80()
+
+    def not_implmented():
+        print(f'${hex(op)} not implemented')
+        exit(1)
+
+
+    opcodes = [
+    # 00
+    z80.nop,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.dec_b,
+    z80.ldr_b,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.dec_c,
+    z80.ldr_c,
+    not_implmented,
+
+    # 10
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 20
+    z80.jrcc_e,
+    z80.ldrr_hl,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 30
+    not_implmented,
+    not_implmented,
+    z80.ldhl_a_dec,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.ldr_a,
+    not_implmented,
+
+    # 40
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 50
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 60
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 70
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 80
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # 90
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # a0
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.xor_a,
+
+    # b0
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # c0
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.jp_nn,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # d0
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # e0
+    z80.ldhn_a,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+
+    # f0
+    z80.ldha_n,
+    not_implmented,
+    not_implmented,
+    z80.di,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    not_implmented,
+    z80.cpn,
+    not_implmented,
+]
+
     # CPU.mmu.load('Tetris.gb')
 
     while True:
-        pass
-
+        op = mmu.read_byte(z80._pc)
+        z80._pc += 1
+        print(hex(op))
+        if z80._pc > 0x100:
+            opcodes[op]()
