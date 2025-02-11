@@ -6,6 +6,10 @@ class GPU(object):
         self.screen = None
         self.surface = None
         self.pixels = None
+
+        self._mode = 0
+        self._modeclock = 0
+        self._line = 0
     
     def reset(self):
         pygame.init()
@@ -17,11 +21,16 @@ class GPU(object):
     
     def update_surface(self):
         # blit array doesn't support alpha
-        rgb_pixels = self.pixels[:, :, 3]
+        rgb_pixels = np.transpose(self.pixels[:, :, :3], (1,0,2))
         pygame.surfarray.blit_array(self.surface, rgb_pixels)
         # contruct alpha channel manually 
-        alpha_surface = pygame.Surface((160,144), pygame.SRCALPHA)
-        pygame.surfarray.blit_array(alpha_surface, self.pixels)
+        alpha_surface = self.surface.copy()
+        alpha_surface.fill((0, 0, 0, 0))
+        for y in range(144):
+            for x in range(160):
+                r, g, b, a = self.pixels[y, x]
+                alpha_surface.set_at((x, y), (r,g,b,a))
+        # pygame.surfarray.blit_array(alpha_surface, self.pixels)
         self.screen.blit(alpha_surface, (0, 0))
         pygame.display.flip()
     
@@ -29,6 +38,39 @@ class GPU(object):
         if 0 <= x < 160 and 0 <= y < 144:
             self.pixels[y, x] = color
             self.update_surface()
+    
+    def render_scan(self): pass
+
+    def step(self):
+        self._modeclock += z80._r_t
+        match self._mode:
+            case 2:
+                if self._modeclock >= 80:
+                    self._modeclock = 0
+                    self._mode = 3
+            case 3:
+                if self._modeclock >= 172:
+                    self._modeclock = 0
+                    self._mode = 0
+                    self.render_scan()
+            case 0:
+                if self._modeclock >= 204:
+                    self._modeclock = 0
+                    self._line += 1
+
+                    if self._line == 143:
+                        self._mode = 1
+                        pygame.display.flip()
+                    else:
+                        self._mode = 2
+            case 1:
+                if self._modeclock >= 456:
+                    self._modeclock = 0
+                    self._line += 1
+
+                    if self._line > 153:
+                        self._mode = 2
+                        self._line = 0
 
 
 class MMU(object):
@@ -675,6 +717,8 @@ class Z80(object):
 if __name__ == '__main__':
     mmu = MMU('Tetris.gb')
     z80 = Z80()
+    gpu = GPU()
+    gpu.reset()
 
     def not_implmented():
         print(f'${hex(op)} not implemented')
@@ -983,5 +1027,6 @@ if __name__ == '__main__':
             z80._pc &= 65535
             z80._clock_m += z80._r_m
             z80._clock_t += z80._r_t
-            c += 1
-            if c == 10: exit(1)
+            gpu.step()
+            # c += 1
+            # if c == 10: exit(1)
