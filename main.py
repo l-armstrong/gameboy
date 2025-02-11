@@ -543,7 +543,6 @@ class Z80(object):
     def xor_l(self): self.xor_r('_r_l')
     def xor_a(self): self.xor_r('_r_a')
 
-
     # Decrements data in the 8-bit register r.
     def dec_r(self, reg):
         setattr(self, reg, (getattr(self, reg) - 1) & 255)
@@ -647,7 +646,6 @@ if __name__ == '__main__':
     def not_implmented():
         print(f'${hex(op)} not implemented')
         exit(1)
-
 
     opcodes = [
     # 00
@@ -938,12 +936,16 @@ if __name__ == '__main__':
     z80.cpn,
     not_implmented,
 ]
-
-    # CPU.mmu.load('Tetris.gb')
-
+    c = 0
+    # TODO: check pc, this may be wrong
+    # print(len(mmu._bios))
+    # exit(1)
     while True:
         op = mmu.read_byte(z80._pc)
         z80._pc += 1
-        print(hex(op))
+        # print(hex(op))
         if z80._pc > 0x100:
+            print(f'instr {hex(z80._pc - 1)} -- opcode: {hex(op)}')
             opcodes[op]()
+            c += 1
+            if c == 10: exit(1)
