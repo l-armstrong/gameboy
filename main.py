@@ -1,3 +1,36 @@
+import pygame
+import numpy as np
+
+class GPU(object):
+    def __init__(self):
+        self.screen = None
+        self.surface = None
+        self.pixels = None
+    
+    def reset(self):
+        pygame.init()
+        self.screen = pygame.display.set_mode((160,144))
+        self.surface = pygame.Surface((160,144), pygame.SRCALPHA)
+        # set all pixels to white
+        self.pixels = np.full((144, 160, 4), (255, 255, 255, 255), dtype=np.uint8)
+        self.update_surface()
+    
+    def update_surface(self):
+        # blit array doesn't support alpha
+        rgb_pixels = self.pixels[:, :, 3]
+        pygame.surfarray.blit_array(self.surface, rgb_pixels)
+        # contruct alpha channel manually 
+        alpha_surface = pygame.Surface((160,144), pygame.SRCALPHA)
+        pygame.surfarray.blit_array(alpha_surface, self.pixels)
+        self.screen.blit(alpha_surface, (0, 0))
+        pygame.display.flip()
+    
+    def set_pixel(self, x, y, color):
+        if 0 <= x < 160 and 0 <= y < 144:
+            self.pixels[y, x] = color
+            self.update_surface()
+
+
 class MMU(object):
     def __init__(self, rom):
         # BIOS code is run upon CPU start
@@ -943,9 +976,12 @@ if __name__ == '__main__':
     while True:
         op = mmu.read_byte(z80._pc)
         z80._pc += 1
-        # print(hex(op))
+
         if z80._pc > 0x100:
             print(f'instr {hex(z80._pc - 1)} -- opcode: {hex(op)}')
             opcodes[op]()
+            z80._pc &= 65535
+            z80._clock_m += z80._r_m
+            z80._clock_t += z80._r_t
             c += 1
             if c == 10: exit(1)
