@@ -1,17 +1,19 @@
+from cpu.cpu import Register, MMU
+
 class Opcode(object):
-    def __init__(self, code, mnemonic, length, tcycles, instructions=None):
+    def __init__(self, code, mnemonic, length, tcycles, instruction=None):
         self.code = code
         self.mnemonic = mnemonic
         self.length = length
         self.tcycles = tcycles
         self.mcycles = tcycles // 4
-        self.instructions = instructions
+        self.instruction = instruction
     
     def __repr__(self):
         return f'{hex(self.code)}: {self.mnemonic}'
 
 class Opcodes(object):
-    def __init__(self, regs, mmu):
+    def __init__(self, regs: Register, mmu: MMU):
         self.regs = regs
         self.mmu = mmu
         self.op_collection = self.init_opcodes()
@@ -146,14 +148,14 @@ class Opcodes(object):
 	        0x7D: Opcode(0x7D, "LD A L", 1, 4),
 	        0x7E: Opcode(0x7E, "LD A HL", 1, 8),
 	        0x7F: Opcode(0x7F, "LD A A", 1, 4),
-	        0x80: Opcode(0x80, "ADD A B", 1, 4),
-	        0x81: Opcode(0x81, "ADD A C", 1, 4),
-	        0x82: Opcode(0x82, "ADD A D", 1, 4),
-	        0x83: Opcode(0x83, "ADD A E", 1, 4),
-	        0x84: Opcode(0x84, "ADD A H", 1, 4),
-	        0x85: Opcode(0x85, "ADD A L", 1, 4),
+	        0x80: Opcode(0x80, "ADD A B", 1, 4, lambda: self.add(self.regs.b)),
+	        0x81: Opcode(0x81, "ADD A C", 1, 4, lambda: self.add(self.regs.c)),
+	        0x82: Opcode(0x82, "ADD A D", 1, 4, lambda: self.add(self.regs.d)),
+	        0x83: Opcode(0x83, "ADD A E", 1, 4, lambda: self.add(self.regs.e)),
+	        0x84: Opcode(0x84, "ADD A H", 1, 4, lambda: self.add(self.regs.h)),
+	        0x85: Opcode(0x85, "ADD A L", 1, 4, lambda: self.add(self.regs.l)),
 	        0x86: Opcode(0x86, "ADD A HL", 1, 8),
-	        0x87: Opcode(0x87, "ADD A A", 1, 4),
+	        0x87: Opcode(0x87, "ADD A A", 1, 4, lambda: self.add(self.regs.a)),
 	        0x88: Opcode(0x88, "ADC A B", 1, 4),
 	        0x89: Opcode(0x89, "ADC A C", 1, 4),
 	        0x8A: Opcode(0x8A, "ADC A D", 1, 4),
@@ -274,4 +276,18 @@ class Opcodes(object):
 	        0xFD: Opcode(0xFD, "ILLEGAL_FD", 1, 4),
 	        0xFE: Opcode(0xFE, "CP A n8", 2, 8),
 	        0xFF: Opcode(0xFF, "RST $38", 1, 16),
-        }       
+        }   
+    
+    def add(self, value):
+        res = self.regs.a + value
+		# clear flags
+        self.regs.f = 0
+        # check if result was zero
+        if not (res & 0xFF): self.regs.f |= self.regs.ZERO_FLAG
+        # check if result has a half carry
+        if ((self.regs.a & 0x0F) + (res & 0x0F)) > 0x0F: self.regs.f |= self.regs.HALF_CARRY_FLAG
+        # check if result has a carry
+        if res > 255: self.regs.f |= self.regs.CARRY_FLAG
+        # set regs.a, may wrap around since type(self.regs.a) == np.uint8
+        self.regs.a = res
+        
