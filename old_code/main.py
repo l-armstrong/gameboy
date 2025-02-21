@@ -1,23 +1,40 @@
 import pygame
 import numpy as np
 
+
 class GPU(object):
     def __init__(self):
         self.screen = None
         self.surface = None
         self.pixels = None
-
+        # 384 tiles, each 8x8 pixels
+        # self.tileset = np.zeros((384,8,8), dtype=np.uint8)
+        self.tileset = []
+        # self.vram = [0] * 0x2000
+        self.vram = np.zeros(0x2000, dtype=np.uint8)
+        # grayscale palette
+        self.pal = [(255, 255, 255, 255), (192, 192, 192, 255), (96, 96, 96, 255), (0, 0, 0, 255)]
+        self.switchbg = 0
         self._mode = 0
         self._modeclock = 0
         self._line = 0
+        self.scroll_x = 0
+        self.scroll_y = 0
+        # background tile map selction
+        self.bgmap = 0
+        self.bgtile = 0
     
     def reset(self):
+        self.tileset = [[[0 for _ in range(8)] for _ in range(8)] for _ in range(384)]
+
         pygame.init()
         self.screen = pygame.display.set_mode((160,144))
         self.surface = pygame.Surface((160,144), pygame.SRCALPHA)
+
         # set all pixels to white
         self.pixels = np.full((144, 160, 4), (255, 255, 255, 255), dtype=np.uint8)
         self.update_surface()
+
     
     def update_surface(self):
         # blit array doesn't support alpha
@@ -34,43 +51,135 @@ class GPU(object):
         self.screen.blit(alpha_surface, (0, 0))
         pygame.display.flip()
     
+    def update_tile(self, addr, val):
+        # get the base address for this tile row
+        addr &= 0x1FFE
+
+        # Work out which tile and row was updated
+        tile = (addr >> 4) & 511
+        y = (addr >> 1) & 7
+
+        for x in range(8):
+            sx = 1 << (7 - x) 
+            self.tileset[tile][y][x] = ((self.vram[addr] & sx) != 0) + ((self.vram[addr + 1] & sx) != 0) * 2
+    
     def set_pixel(self, x, y, color):
         if 0 <= x < 160 and 0 <= y < 144:
             self.pixels[y, x] = color
             self.update_surface()
     
-    def render_scan(self): pass
+    def render_scan(self): 
+        # 
+        mapoffset = 0x1C00 if self.bgmap else 0x1800
+        # calc. which row in the background map to use
+        mapoffset += ((self._line + self.scroll_y)) >> 3
+
+        lineoffset = self.scroll_x >> 3
+
+        # determine which row of pixels within the title to use
+        y = (self._line + self.scroll_y) & 7 # Row within the tile
+
+        # Determine pixel offset
+        x = self.scroll_x & 7
+
+        canvasoffset = (self._line * 160) % 160
+
+        tile = self.vram[mapoffset + lineoffset]
+
+        if self.bgtile == 1 and tile < 128:
+            tile += 256
+        
+        for i in range(160):
+            color = self.pal[self.tileset[tile][y][x]]
+            # self.screen[self._line, canvasoffset] = color
+            self.pixels[self._line, canvasoffset] = color
+            canvasoffset += 1
+
+            # move to the next pixel
+            x += 1
+            if x == 8:
+                x = 0
+                lineoffset = (lineoffset + 1) & 31
+                tile = self.vram[mapoffset + lineoffset]
+
+                # adjust tile index if using signed mode
+                if self.bgtile == 1 and tile < 128:
+                    tile += 256
 
     def step(self):
         self._modeclock += z80._r_t
         match self._mode:
+            # OAM read mode
             case 2:
                 if self._modeclock >= 80:
                     self._modeclock = 0
                     self._mode = 3
+            # VRAM read mode
             case 3:
                 if self._modeclock >= 172:
                     self._modeclock = 0
                     self._mode = 0
                     self.render_scan()
+            # Hblank            
             case 0:
                 if self._modeclock >= 204:
                     self._modeclock = 0
                     self._line += 1
-
+                    # push data to screen
                     if self._line == 143:
+                        #Enter vblank
                         self._mode = 1
-                        pygame.display.flip()
                     else:
                         self._mode = 2
+            # Vblank
             case 1:
                 if self._modeclock >= 456:
                     self._modeclock = 0
                     self._line += 1
 
                     if self._line > 153:
+                        # restart scanning
                         self._mode = 2
                         self._line = 0
+    
+    def read_byte(self, addr):
+        """ Read a byte from GPU memory-mapped registers. """
+        if addr == 0xFF40:  # LCD Control
+            return ((self.switchbg  << 0) |
+                    (self.bgmap     << 3) |
+                    (self.bgtile    << 4) |
+                    (self.switchlcd << 7))
+
+        elif addr == 0xFF42:  # Scroll Y
+            return self.scroll_y
+
+        elif addr == 0xFF43:  # Scroll X
+            return self.scroll_x
+
+        elif addr == 0xFF44:  # Current scanline
+            return self._line
+
+        return 0  # Return 0 for unmapped addresses
+
+    def write_byte(self, addr, val):
+        """ Write a byte to GPU memory-mapped registers. """
+        if addr == 0xFF40:  # LCD Control
+            self.switchbg  = 1 if (val & 0x01) else 0
+            self.bgmap     = 1 if (val & 0x08) else 0
+            self.bgtile    = 1 if (val & 0x10) else 0
+            self.switchlcd = 1 if (val & 0x80) else 0
+
+        elif addr == 0xFF42:  # Scroll Y
+            self.scy = val
+
+        elif addr == 0xFF43:  # Scroll X
+            self.scx = val
+
+        elif addr == 0xFF47:  # Background palette
+            self.pal = [
+                [(255, 255, 255, 255), (192, 192, 192, 255), (96, 96, 96, 255), (0, 0, 0, 255)][(val >> (i * 2)) & 3]
+                for i in range(4)
+            ]
 
 
 class MMU(object):
@@ -165,6 +274,9 @@ class MMU(object):
                             return self._zram[addr & 0x7F]
                         else:
                             # IO unhandled.
+                            match (addr & 0x00F0):
+                                case 0x40 | 0x50 | 0x60 | 0x70:
+                                    return gpu.read_byte(addr)
                             return 0
                         
     def read_word(self, addr):
@@ -187,8 +299,8 @@ class MMU(object):
             # Graphics VRAM (8K): Data required for the backgrounds and sprites
             case 0x8000 | 0x9000: 
                 # TODO: come back and fix this
-                self._gpu_vram[addr & 0x1FFF] = val
-                self._gpu_updatetile(addr & 0x1FFF, val)
+                gpu.vram[addr & 0x1FFF] = val
+                gpu.update_tile(addr, val)
             # External RAM (8K)
             case 0xA000 | 0xB000:
                 self._eram[addr & 0x1FFF] = val
@@ -217,10 +329,13 @@ class MMU(object):
                         self.gpu_update_oam(addr, val)
                     # zero page
                     case 0xF00:
-                        if addr > 0xFF7F:
+                        if addr >= 0xFF80:
                             self._zram[addr & 0x7F] = val
                         else:
-                            pass 
+                            match addr & 0x00F0:
+                                case 0x40 | 0x50 | 0x60 | 0x70:
+                                    gpu.write_byte(addr, val)
+                                    return
 
     def write_word(self, addr, val):
         self.write_byte(addr, val & 255)
@@ -269,7 +384,9 @@ class Z80(object):
         self._r_c = self._r_b = self._r_a = 0
         self._r_h = self._r_e = self._r_d = 0
         self._r_f = self._r_l = 0
-        self._sp = self._pc = 0
+        # self._sp = self._pc = 0
+        self._sp = 0
+        self._pc = 0x100
         self._r_t = self._r_m = 0
         self._ime = 1
     
@@ -713,15 +830,56 @@ class Z80(object):
         # 4 t-states
         self._r_t = 4
 
+class jsGB:
+    def __init__(self):
+        self._interval = None  # Stores reference to the running loop
+        self.running = False  # Indicates if the emulator is running
+
+    def reset(self):
+        """ Resets the emulator components. """
+        gpu.reset()
+        # mmu.reset()
+        z80.reset()
+        # MMU.load("test.gb")  # Load ROM file
+
+    def frame(self):
+        """ Executes one full frame of emulation (70224 T-cycles). """
+        fclk = z80._clock_t + 70224  # Frame cycle target
+        while z80._clock_t < fclk and self.running:
+            op = mmu.read_byte(z80._pc)  # Fetch instruction
+            z80._pc = (z80._pc + 1) & 0xFFFF  # Increment & wrap PC
+            opcodes[op]()  # Execute instruction
+            z80._clock_m += z80._r_m  # Update clock cycles
+            z80._clock_t += z80._r_t
+            gpu.step()  # Step GPU
+
+    # def run(self):
+    #     """ Starts or stops the emulator loop. """
+    #     if not self.running:
+    #         self.running = True
+    #         self._interval = Thread(target=self.run_loop, daemon=True)
+    #         self._interval.start()
+    #         print("Emulator Running... (Press Ctrl+C to stop)")
+    #     else:
+    #         self.running = False
+    #         print("Emulator Paused.")
+
+    # def run_loop(self):
+    #     """ Keeps running frames while the emulator is active. """
+    #     while self.running:
+    #         self.frame()
+    #         time.sleep(1 / 60)  # Approximate 60 FPS execution
+
 
 if __name__ == '__main__':
     mmu = MMU('Tetris.gb')
     z80 = Z80()
     gpu = GPU()
-    gpu.reset()
+    # gpu.reset()
 
     def not_implmented():
-        print(f'${hex(op)} not implemented')
+        # print(f'${hex(op)} not implemented')
+        print(f'not implemented')
         exit(1)
 
     opcodes = [
@@ -1013,20 +1171,30 @@ if __name__ == '__main__':
     z80.cpn,
     not_implmented,
 ]
-    c = 0
-    # TODO: check pc, this may be wrong
-    # print(len(mmu._bios))
-    # exit(1)
-    while True:
-        op = mmu.read_byte(z80._pc)
-        z80._pc += 1
+    emulator = jsGB()
+    emulator.reset()
+    # emulator.run()
+    # c = 0
+    # # TODO: check pc, this may be wrong
+    # # print(len(mmu._bios))
+    # # exit(1)
+    # while True:
+    #     op = mmu.read_byte(z80._pc)
+    #     z80._pc += 1
 
-        if z80._pc > 0x100:
-            print(f'instr {hex(z80._pc - 1)} -- opcode: {hex(op)}')
-            opcodes[op]()
-            z80._pc &= 65535
-            z80._clock_m += z80._r_m
-            z80._clock_t += z80._r_t
-            gpu.step()
+    #     if z80._pc > 0x100:
+    #         print(f'instr {hex(z80._pc - 1)} -- opcode: {hex(op)}')
+    #         opcodes[op]()
+    #         z80._pc &= 65535
+    #         z80._clock_m += z80._r_m
+    #         z80._clock_t += z80._r_t
+    #         gpu.step()
             # c += 1
             # if c == 10: exit(1)
+    clock = pygame.time.Clock()
+    while True:
+        emulator.frame()
+        gpu.update_surface()
+        clock.tick(60)
+        # pygame.display.flip()
+        

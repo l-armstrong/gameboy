@@ -11,8 +11,8 @@ class Opcode(object):
         return f'{hex(self.code)}: {self.mnemonic}'
 
 class Opcodes(object):
-    def __init__(self, cpu=None, mmu=None):
-        self.cpu = cpu
+    def __init__(self, regs, mmu):
+        self.regs = regs
         self.mmu = mmu
         self.op_collection = self.init_opcodes()
     
@@ -275,5 +275,3 @@ class Opcodes(object):
 	        0xFE: Opcode(0xFE, "CP A n8", 2, 8),
 	        0xFF: Opcode(0xFF, "RST $38", 1, 16),
         }       
-
-opcodes = Opcodes()

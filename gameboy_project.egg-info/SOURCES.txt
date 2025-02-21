@@ -1,0 +1,5 @@
+setup.py
+gameboy_project.egg-info/PKG-INFO
+gameboy_project.egg-info/SOURCES.txt
+gameboy_project.egg-info/dependency_links.txt
+gameboy_project.egg-info/top_level.txt
