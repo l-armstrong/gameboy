@@ -190,14 +190,14 @@ class Opcodes(object):
             0xA5: Opcode(0xA5, "AND A L", 1, 4, lambda: self._and(self.regs.l)),
             0xA6: Opcode(0xA6, "AND A HL", 1, 8),
             0xA7: Opcode(0xA7, "AND A A", 1, 4, lambda: self._and(self.regs.a)),
-            0xA8: Opcode(0xA8, "XOR A B", 1, 4),
-            0xA9: Opcode(0xA9, "XOR A C", 1, 4),
-            0xAA: Opcode(0xAA, "XOR A D", 1, 4),
-            0xAB: Opcode(0xAB, "XOR A E", 1, 4),
-            0xAC: Opcode(0xAC, "XOR A H", 1, 4),
-            0xAD: Opcode(0xAD, "XOR A L", 1, 4),
+            0xA8: Opcode(0xA8, "XOR A B", 1, 4, lambda: self._xor(self.regs.b)),
+            0xA9: Opcode(0xA9, "XOR A C", 1, 4, lambda: self._xor(self.regs.c)),
+            0xAA: Opcode(0xAA, "XOR A D", 1, 4, lambda: self._xor(self.regs.d)),
+            0xAB: Opcode(0xAB, "XOR A E", 1, 4, lambda: self._xor(self.regs.e)),
+            0xAC: Opcode(0xAC, "XOR A H", 1, 4, lambda: self._xor(self.regs.h)),
+            0xAD: Opcode(0xAD, "XOR A L", 1, 4, lambda: self._xor(self.regs.l)),
             0xAE: Opcode(0xAE, "XOR A HL", 1, 8),
-            0xAF: Opcode(0xAF, "XOR A A", 1, 4),
+            0xAF: Opcode(0xAF, "XOR A A", 1, 4, lambda: self._xor(self.regs.a)),
             0xB0: Opcode(0xB0, "OR A B", 1, 4, lambda: self._or(self.regs.b)),
             0xB1: Opcode(0xB1, "OR A C", 1, 4, lambda: self._or(self.regs.c)),
             0xB2: Opcode(0xB2, "OR A D", 1, 4, lambda: self._or(self.regs.d)),
@@ -295,6 +295,17 @@ class Opcodes(object):
         self.regs.a = self.regs.a | value
         # clear flags
         self.regs.f = 0
+        # check if regs a is zero
+        if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
+        # check if regs a is zero
+        
+    def _xor(self, value):
+        # perform bitwise or on 8bit values and reg a.
+        self.regs.a = self.regs.a ^ value
+        # clear flags
+        self.regs.f = 0
+        # check if regs a is zero
+        if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
         # check if regs a is zero
         
 
