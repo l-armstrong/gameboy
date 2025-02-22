@@ -198,14 +198,14 @@ class Opcodes(object):
             0xAD: Opcode(0xAD, "XOR A L", 1, 4),
             0xAE: Opcode(0xAE, "XOR A HL", 1, 8),
             0xAF: Opcode(0xAF, "XOR A A", 1, 4),
-            0xB0: Opcode(0xB0, "OR A B", 1, 4),
-            0xB1: Opcode(0xB1, "OR A C", 1, 4),
-            0xB2: Opcode(0xB2, "OR A D", 1, 4),
-            0xB3: Opcode(0xB3, "OR A E", 1, 4),
-            0xB4: Opcode(0xB4, "OR A H", 1, 4),
-            0xB5: Opcode(0xB5, "OR A L", 1, 4),
+            0xB0: Opcode(0xB0, "OR A B", 1, 4, lambda: self._or(self.regs.b)),
+            0xB1: Opcode(0xB1, "OR A C", 1, 4, lambda: self._or(self.regs.c)),
+            0xB2: Opcode(0xB2, "OR A D", 1, 4, lambda: self._or(self.regs.d)),
+            0xB3: Opcode(0xB3, "OR A E", 1, 4, lambda: self._or(self.regs.e)),
+            0xB4: Opcode(0xB4, "OR A H", 1, 4, lambda: self._or(self.regs.h)),
+            0xB5: Opcode(0xB5, "OR A L", 1, 4, lambda: self._or(self.regs.l)),
             0xB6: Opcode(0xB6, "OR A HL", 1, 8),
-            0xB7: Opcode(0xB7, "OR A A", 1, 4),
+            0xB7: Opcode(0xB7, "OR A A", 1, 4, lambda: self._or(self.regs.a)),
             0xB8: Opcode(0xB8, "CP A B", 1, 4),
             0xB9: Opcode(0xB9, "CP A C", 1, 4),
             0xBA: Opcode(0xBA, "CP A D", 1, 4),
@@ -289,9 +289,17 @@ class Opcodes(object):
         if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
         # set half carry
         self.regs.f |= self.regs.HALF_CARRY_FLAG
+    
+    def _or(self, value):
+        # perform bitwise or on 8bit values and reg a.
+        self.regs.a = self.regs.a | value
+        # clear flags
+        self.regs.f = 0
+        # check if regs a is zero
         
 
     def add(self, value):
+        # perform add operation on 8bit values and reg a.
         res = self.regs.a + value
         # clear flags
         self.regs.f = 0
@@ -306,3 +314,4 @@ class Opcodes(object):
             self.regs.f |= self.regs.CARRY_FLAG
         # set regs.a, may wrap around since type(self.regs.a) == np.uint8
         self.regs.a = res
+        
