@@ -21,53 +21,60 @@ class Opcodes(object):
         self.op_collection = self.init_opcodes()
 
     def init_opcodes(self):
+        REG_A = "self.regs.a" 
+        REG_B = "self.regs.b"
+        REG_C = "self.regs.c" 
+        REG_D = "self.regs.d" 
+        REG_E = "self.regs.e" 
+        REG_H = "self.regs.h" 
+        REG_L = "self.regs.l"
         return {
             0x00: Opcode(0x00, "NOP", 1, 4),
             0x01: Opcode(0x01, "LD BC n16", 3, 12),
             0x02: Opcode(0x02, "LD BC A", 1, 8),
             0x03: Opcode(0x03, "INC BC", 1, 8),
-            0x04: Opcode(0x04, "INC B", 1, 4),
-            0x05: Opcode(0x05, "DEC B", 1, 4),
+            0x04: Opcode(0x04, "INC B", 1, 4, lambda: self._inc(REG_B)),
+            0x05: Opcode(0x05, "DEC B", 1, 4, lambda: self._dec(REG_B)),
             0x06: Opcode(0x06, "LD B n8", 2, 8),
             0x07: Opcode(0x07, "RLCA", 1, 4),
             0x08: Opcode(0x08, "LD a16 SP", 3, 20),
             0x09: Opcode(0x09, "ADD HL BC", 1, 8),
             0x0A: Opcode(0x0A, "LD A BC", 1, 8),
             0x0B: Opcode(0x0B, "DEC BC", 1, 8),
-            0x0C: Opcode(0x0C, "INC C", 1, 4),
-            0x0D: Opcode(0x0D, "DEC C", 1, 4),
+            0x0C: Opcode(0x0C, "INC C", 1, 4, lambda: self._inc(REG_C)),
+            0x0D: Opcode(0x0D, "DEC C", 1, 4, lambda: self._dec(REG_C)),
             0x0E: Opcode(0x0E, "LD C n8", 2, 8),
             0x0F: Opcode(0x0F, "RRCA", 1, 4),
             0x10: Opcode(0x10, "STOP n8", 2, 4),
             0x11: Opcode(0x11, "LD DE n16", 3, 12),
             0x12: Opcode(0x12, "LD DE A", 1, 8),
             0x13: Opcode(0x13, "INC DE", 1, 8),
-            0x14: Opcode(0x14, "INC D", 1, 4),
-            0x15: Opcode(0x15, "DEC D", 1, 4),
+            0x14: Opcode(0x14, "INC D", 1, 4, lambda: self._inc(REG_D)),
+            0x15: Opcode(0x15, "DEC D", 1, 4, lambda: self._dec(REG_D)),
             0x16: Opcode(0x16, "LD D n8", 2, 8),
             0x17: Opcode(0x17, "RLA", 1, 4),
             0x18: Opcode(0x18, "JR e8", 2, 12),
             0x19: Opcode(0x19, "ADD HL DE", 1, 8),
             0x1A: Opcode(0x1A, "LD A DE", 1, 8),
             0x1B: Opcode(0x1B, "DEC DE", 1, 8),
-            0x1C: Opcode(0x1C, "INC E", 1, 4),
-            0x1D: Opcode(0x1D, "DEC E", 1, 4),
+            0x1C: Opcode(0x1C, "INC E", 1, 4, lambda: self._inc(REG_E)),
+            0x1D: Opcode(0x1D, "DEC E", 1, 4, lambda: self._dec(REG_E)),
             0x1E: Opcode(0x1E, "LD E n8", 2, 8),
             0x1F: Opcode(0x1F, "RRA", 1, 4),
             0x20: Opcode(0x20, "JR NZ e8", 2, 12),
             0x21: Opcode(0x21, "LD HL n16", 3, 12),
             0x22: Opcode(0x22, "LD HL A", 1, 8),
             0x23: Opcode(0x23, "INC HL", 1, 8),
-            0x24: Opcode(0x24, "INC H", 1, 4),
-            0x25: Opcode(0x25, "DEC H", 1, 4),
+            0x24: Opcode(0x24, "INC H", 1, 4, lambda: self._inc(REG_H)),
+            0x25: Opcode(0x25, "DEC H", 1, 4, lambda: self._dec(REG_H)),
             0x26: Opcode(0x26, "LD H n8", 2, 8),
             0x27: Opcode(0x27, "DAA", 1, 4),
             0x28: Opcode(0x28, "JR Z e8", 2, 12),
             0x29: Opcode(0x29, "ADD HL HL", 1, 8),
             0x2A: Opcode(0x2A, "LD A HL", 1, 8),
             0x2B: Opcode(0x2B, "DEC HL", 1, 8),
-            0x2C: Opcode(0x2C, "INC L", 1, 4),
-            0x2D: Opcode(0x2D, "DEC L", 1, 4),
+            0x2C: Opcode(0x2C, "INC L", 1, 4, lambda: self._inc(REG_L)),
+            0x2D: Opcode(0x2D, "DEC L", 1, 4, lambda: self._dec(REG_L)),
             0x2E: Opcode(0x2E, "LD L n8", 2, 8),
             0x2F: Opcode(0x2F, "CPL", 1, 4),
             0x30: Opcode(0x30, "JR NC e8", 2, 12),
@@ -82,8 +89,8 @@ class Opcodes(object):
             0x39: Opcode(0x39, "ADD HL SP", 1, 8),
             0x3A: Opcode(0x3A, "LD A HL", 1, 8),
             0x3B: Opcode(0x3B, "DEC SP", 1, 8),
-            0x3C: Opcode(0x3C, "INC A", 1, 4),
-            0x3D: Opcode(0x3D, "DEC A", 1, 4),
+            0x3C: Opcode(0x3C, "INC A", 1, 4, lambda: self._inc(REG_A)),
+            0x3D: Opcode(0x3D, "DEC A", 1, 4, lambda: self._dec(REG_A)),
             0x3E: Opcode(0x3E, "LD A n8", 2, 8),
             0x3F: Opcode(0x3F, "CCF", 1, 4),
             0x40: Opcode(0x40, "LD B B", 1, 4),
@@ -150,14 +157,14 @@ class Opcodes(object):
             0x7D: Opcode(0x7D, "LD A L", 1, 4),
             0x7E: Opcode(0x7E, "LD A HL", 1, 8),
             0x7F: Opcode(0x7F, "LD A A", 1, 4),
-            0x80: Opcode(0x80, "ADD A B", 1, 4, lambda: self.add(self.regs.b)),
-            0x81: Opcode(0x81, "ADD A C", 1, 4, lambda: self.add(self.regs.c)),
-            0x82: Opcode(0x82, "ADD A D", 1, 4, lambda: self.add(self.regs.d)),
-            0x83: Opcode(0x83, "ADD A E", 1, 4, lambda: self.add(self.regs.e)),
-            0x84: Opcode(0x84, "ADD A H", 1, 4, lambda: self.add(self.regs.h)),
-            0x85: Opcode(0x85, "ADD A L", 1, 4, lambda: self.add(self.regs.l)),
+            0x80: Opcode(0x80, "ADD A B", 1, 4, lambda: self._add(self.regs.b)),
+            0x81: Opcode(0x81, "ADD A C", 1, 4, lambda: self._add(self.regs.c)),
+            0x82: Opcode(0x82, "ADD A D", 1, 4, lambda: self._add(self.regs.d)),
+            0x83: Opcode(0x83, "ADD A E", 1, 4, lambda: self._add(self.regs.e)),
+            0x84: Opcode(0x84, "ADD A H", 1, 4, lambda: self._add(self.regs.h)),
+            0x85: Opcode(0x85, "ADD A L", 1, 4, lambda: self._add(self.regs.l)),
             0x86: Opcode(0x86, "ADD A HL", 1, 8),
-            0x87: Opcode(0x87, "ADD A A", 1, 4, lambda: self.add(self.regs.a)),
+            0x87: Opcode(0x87, "ADD A A", 1, 4, lambda: self._add(self.regs.a)),
             0x88: Opcode(0x88, "ADC A B", 1, 4),
             0x89: Opcode(0x89, "ADC A C", 1, 4),
             0x8A: Opcode(0x8A, "ADC A D", 1, 4),
@@ -166,14 +173,14 @@ class Opcodes(object):
             0x8D: Opcode(0x8D, "ADC A L", 1, 4),
             0x8E: Opcode(0x8E, "ADC A HL", 1, 8),
             0x8F: Opcode(0x8F, "ADC A A", 1, 4),
-            0x90: Opcode(0x90, "SUB A B", 1, 4),
-            0x91: Opcode(0x91, "SUB A C", 1, 4),
-            0x92: Opcode(0x92, "SUB A D", 1, 4),
-            0x93: Opcode(0x93, "SUB A E", 1, 4),
-            0x94: Opcode(0x94, "SUB A H", 1, 4),
-            0x95: Opcode(0x95, "SUB A L", 1, 4),
+            0x90: Opcode(0x90, "SUB A B", 1, 4, lambda: self._sub(self.regs.b)),
+            0x91: Opcode(0x91, "SUB A C", 1, 4, lambda: self._sub(self.regs.c)),
+            0x92: Opcode(0x92, "SUB A D", 1, 4, lambda: self._sub(self.regs.d)),
+            0x93: Opcode(0x93, "SUB A E", 1, 4, lambda: self._sub(self.regs.e)),
+            0x94: Opcode(0x94, "SUB A H", 1, 4, lambda: self._sub(self.regs.h)),
+            0x95: Opcode(0x95, "SUB A L", 1, 4, lambda: self._sub(self.regs.l)),
             0x96: Opcode(0x96, "SUB A HL", 1, 8),
-            0x97: Opcode(0x97, "SUB A A", 1, 4),
+            0x97: Opcode(0x97, "SUB A A", 1, 4, lambda: self._sub(self.regs.a)),
             0x98: Opcode(0x98, "SBC A B", 1, 4),
             0x99: Opcode(0x99, "SBC A C", 1, 4),
             0x9A: Opcode(0x9A, "SBC A D", 1, 4),
@@ -308,21 +315,56 @@ class Opcodes(object):
         if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
         # check if regs a is zero
         
-
-    def add(self, value):
+    def _add(self, value):
         # perform add operation on 8bit values and reg a.
         res = self.regs.a + value
         # clear flags
         self.regs.f = 0
         # check if result was zero
-        if not (res & 0xFF):
-            self.regs.f |= self.regs.ZERO_FLAG
+        if not (res & 0xFF): self.regs.f |= self.regs.ZERO_FLAG
         # check if result has a half carry
         if ((self.regs.a & 0x0F) + (res & 0x0F)) > 0x0F:
             self.regs.f |= self.regs.HALF_CARRY_FLAG
         # check if result has a carry
-        if res > 255:
-            self.regs.f |= self.regs.CARRY_FLAG
+        if res > 255: self.regs.f |= self.regs.CARRY_FLAG
         # set regs.a, may wrap around since type(self.regs.a) == np.uint8
         self.regs.a = res
         
+    def _sub(self, value):
+        # perform sub operation on 8bit values and reg a.
+        res = self.regs.a - value
+        # clear flags
+        self.regs.f = 0
+        # check if result was zero
+        if not (res & 0xFF): self.regs.f |= self.regs.ZERO_FLAG
+        # "Negative"
+        self.regs.f |= self.regs.SUB_FLAG
+        # check if result has a half carry
+        if ((self.regs.a & 0x0F) + (res & 0x0F)) > 0x0F: 
+            self.regs.f |= self.regs.HALF_CARRY_FLAG
+        # check if result has a carry
+        if res > 255: self.regs.f |= self.regs.CARRY_FLAG
+        # set regs.a, may wrap around since type(self.regs.a) == np.uint8
+        self.regs.a = res
+    
+    def _dec(self, reg):
+        # Decrements data in the 8-bit register r.
+        setattr(self, reg, getattr(self, reg) - 1)
+        self.regs.f = 0
+        # check for zero
+        if (not getattr(self, reg)): self.regs.f |= self.regs.ZERO_FLAG
+        # set sub flag
+        self.regs.f |= self.regs.SUB_FLAG
+        # set half carry flag
+        if (getattr(self, reg) & 0x0F) == 0: self.regs.f |= self.regs.HALF_CARRY_FLAG
+
+    def _inc(self, reg):
+        # increments data in the 8-bit register r.
+        setattr(self, reg, getattr(self, reg) + 1)
+        self.regs.f = 0
+        # check for zero
+        if (not getattr(self, reg)): self.regs.f |= self.regs.ZERO_FLAG
+        # set sub flag
+        self.regs.f |= self.regs.SUB_FLAG
+        # set half carry flag
+        if (getattr(self, reg) & 0x0F) == 0x0F: self.regs.f |= self.regs.HALF_CARRY_FLAG
