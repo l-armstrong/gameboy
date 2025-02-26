@@ -27,7 +27,10 @@ class Register(object):
         self.pc = np.uint16(0)
         self.sp = np.uint16(0)
     
-    def read_hl(self): return (self.h << 8) | self.l
+    def hl(self): return (self.h << 8) | self.l
+    def bc(self): return (self.b << 8) | self.c 
+    def de(self): return (self.d << 8) | self.e
+
     def read_pc_inc(self):
         value = np.uint16(self.pc)
         self.pc += 1
@@ -42,6 +45,9 @@ class MMU(object):
     
     def write_byte(self, address, value):
         self.memory[address] = value
+
+    def read_word(self, address):
+        return self.read_byte(address) | (self.read_byte(address + 1) << 8)
 
 class CPU(object):
     def __init__(self, regs, mmu):
