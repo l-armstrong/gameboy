@@ -26,10 +26,18 @@ class Register(object):
         # 16 bit regs
         self.pc = np.uint16(0)
         self.sp = np.uint16(0)
+    
+    def read_hl(self): return (self.h << 8) | self.l
 
 class MMU(object):
     def __init__(self):
-        pass
+        self.memory = np.zeros(65536, dtype=np.uint8)
+    
+    def read_byte(self, address):
+        return self.memory[address]
+    
+    def write_byte(self, address, value):
+        self.memory[address] = value
 
 class CPU(object):
     def __init__(self, regs, mmu):
