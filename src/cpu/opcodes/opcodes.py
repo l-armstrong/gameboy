@@ -39,7 +39,7 @@ class Opcodes(object):
             0x07: Opcode(0x07, "RLCA", 1, 4),
             0x08: Opcode(0x08, "LD a16 SP", 3, 20),
             0x09: Opcode(0x09, "ADD HL BC", 1, 8),
-            0x0A: Opcode(0x0A, "LD A BC", 1, 8),
+            0x0A: Opcode(0x0A, "LD A BC", 1, 8, lambda: self._ld_a_bc()),
             0x0B: Opcode(0x0B, "DEC BC", 1, 8),
             0x0C: Opcode(0x0C, "INC C", 1, 4, lambda: self._inc(REG_C)),
             0x0D: Opcode(0x0D, "DEC C", 1, 4, lambda: self._dec(REG_C)),
@@ -55,7 +55,7 @@ class Opcodes(object):
             0x17: Opcode(0x17, "RLA", 1, 4),
             0x18: Opcode(0x18, "JR e8", 2, 12),
             0x19: Opcode(0x19, "ADD HL DE", 1, 8),
-            0x1A: Opcode(0x1A, "LD A DE", 1, 8),
+            0x1A: Opcode(0x1A, "LD A DE", 1, 8, lambda: self._ld_a_de()),
             0x1B: Opcode(0x1B, "DEC DE", 1, 8),
             0x1C: Opcode(0x1C, "INC E", 1, 4, lambda: self._inc(REG_E)),
             0x1D: Opcode(0x1D, "DEC E", 1, 4, lambda: self._dec(REG_E)),
@@ -63,7 +63,7 @@ class Opcodes(object):
             0x1F: Opcode(0x1F, "RRA", 1, 4),
             0x20: Opcode(0x20, "JR NZ e8", 2, 12),
             0x21: Opcode(0x21, "LD HL n16", 3, 12),
-            0x22: Opcode(0x22, "LD HL A", 1, 8),
+            0x22: Opcode(0x22, "LD HL+ A", 1, 8),
             0x23: Opcode(0x23, "INC HL", 1, 8),
             0x24: Opcode(0x24, "INC H", 1, 4, lambda: self._inc(REG_H)),
             0x25: Opcode(0x25, "DEC H", 1, 4, lambda: self._dec(REG_H)),
@@ -71,7 +71,7 @@ class Opcodes(object):
             0x27: Opcode(0x27, "DAA", 1, 4),
             0x28: Opcode(0x28, "JR Z e8", 2, 12),
             0x29: Opcode(0x29, "ADD HL HL", 1, 8),
-            0x2A: Opcode(0x2A, "LD A HL", 1, 8),
+            0x2A: Opcode(0x2A, "LD A HL+", 1, 8),
             0x2B: Opcode(0x2B, "DEC HL", 1, 8),
             0x2C: Opcode(0x2C, "INC L", 1, 4, lambda: self._inc(REG_L)),
             0x2D: Opcode(0x2D, "DEC L", 1, 4, lambda: self._dec(REG_L)),
@@ -79,7 +79,7 @@ class Opcodes(object):
             0x2F: Opcode(0x2F, "CPL", 1, 4),
             0x30: Opcode(0x30, "JR NC e8", 2, 12),
             0x31: Opcode(0x31, "LD SP n16", 3, 12),
-            0x32: Opcode(0x32, "LD HL A", 1, 8),
+            0x32: Opcode(0x32, "LD HL- A", 1, 8),
             0x33: Opcode(0x33, "INC SP", 1, 8),
             0x34: Opcode(0x34, "INC HL", 1, 12),
             0x35: Opcode(0x35, "DEC HL", 1, 12),
@@ -87,7 +87,7 @@ class Opcodes(object):
             0x37: Opcode(0x37, "SCF", 1, 4),
             0x38: Opcode(0x38, "JR C e8", 2, 12),
             0x39: Opcode(0x39, "ADD HL SP", 1, 8),
-            0x3A: Opcode(0x3A, "LD A HL", 1, 8),
+            0x3A: Opcode(0x3A, "LD A HL-", 1, 8),
             0x3B: Opcode(0x3B, "DEC SP", 1, 8),
             0x3C: Opcode(0x3C, "INC A", 1, 4, lambda: self._inc(REG_A)),
             0x3D: Opcode(0x3D, "DEC A", 1, 4, lambda: self._dec(REG_A)),
@@ -445,3 +445,11 @@ class Opcodes(object):
     def _ld_de_a(self):
         # Load to address in DE data from the 8-bit A register.
         self.mmu.write_byte(self.regs.de(), self.regs.a)
+    
+    def _ld_a_bc(self):
+        # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register BC
+        self.regs.a = self.mmu.read_byte(self.regs.bc())
+
+    def _ld_a_de(self): 
+        # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register DE
+        self.regs.a = self.mmu.read_byte(self.regs.de())
