@@ -31,7 +31,7 @@ class Opcodes(object):
         return {
             0x00: Opcode(0x00, "NOP", 1, 4),
             0x01: Opcode(0x01, "LD BC n16", 3, 12),
-            0x02: Opcode(0x02, "LD BC A", 1, 8),
+            0x02: Opcode(0x02, "LD BC A", 1, 8, lambda: self._ld_bc_a()),
             0x03: Opcode(0x03, "INC BC", 1, 8),
             0x04: Opcode(0x04, "INC B", 1, 4, lambda: self._inc(REG_B)),
             0x05: Opcode(0x05, "DEC B", 1, 4, lambda: self._dec(REG_B)),
@@ -47,7 +47,7 @@ class Opcodes(object):
             0x0F: Opcode(0x0F, "RRCA", 1, 4),
             0x10: Opcode(0x10, "STOP n8", 2, 4),
             0x11: Opcode(0x11, "LD DE n16", 3, 12),
-            0x12: Opcode(0x12, "LD DE A", 1, 8),
+            0x12: Opcode(0x12, "LD DE A", 1, 8, lambda: self._ld_de_a()),
             0x13: Opcode(0x13, "INC DE", 1, 8),
             0x14: Opcode(0x14, "INC D", 1, 4, lambda: self._inc(REG_D)),
             0x15: Opcode(0x15, "DEC D", 1, 4, lambda: self._dec(REG_D)),
@@ -141,14 +141,14 @@ class Opcodes(object):
             0x6D: Opcode(0x6D, "LD L L", 1, 4, lambda: self._ld(REG_L, REG_L)),
             0x6E: Opcode(0x6E, "LD L HL", 1, 8, lambda: self._ldr_hl(REG_L)),
             0x6F: Opcode(0x6F, "LD L A", 1, 4, lambda: self._ld(REG_L, REG_A)),
-            0x70: Opcode(0x70, "LD HL B", 1, 8),
-            0x71: Opcode(0x71, "LD HL C", 1, 8),
-            0x72: Opcode(0x72, "LD HL D", 1, 8),
-            0x73: Opcode(0x73, "LD HL E", 1, 8),
-            0x74: Opcode(0x74, "LD HL H", 1, 8),
-            0x75: Opcode(0x75, "LD HL L", 1, 8),
+            0x70: Opcode(0x70, "LD HL B", 1, 8, lambda: self._ldhl_r(REG_B)),
+            0x71: Opcode(0x71, "LD HL C", 1, 8, lambda: self._ldhl_r(REG_C)),
+            0x72: Opcode(0x72, "LD HL D", 1, 8, lambda: self._ldhl_r(REG_D)),
+            0x73: Opcode(0x73, "LD HL E", 1, 8, lambda: self._ldhl_r(REG_E)),
+            0x74: Opcode(0x74, "LD HL H", 1, 8, lambda: self._ldhl_r(REG_H)),
+            0x75: Opcode(0x75, "LD HL L", 1, 8, lambda: self._ldhl_r(REG_L)),
             0x76: Opcode(0x76, "HALT", 1, 4),
-            0x77: Opcode(0x77, "LD HL A", 1, 8),
+            0x77: Opcode(0x77, "LD HL A", 1, 8, lambda: self._ldhl_r(REG_A)),
             0x78: Opcode(0x78, "LD A B", 1, 4, lambda: self._ld(REG_A, REG_B)),
             0x79: Opcode(0x79, "LD A C", 1, 4, lambda: self._ld(REG_A, REG_C)),
             0x7A: Opcode(0x7A, "LD A D", 1, 4, lambda: self._ld(REG_A, REG_D)),
@@ -163,7 +163,7 @@ class Opcodes(object):
             0x83: Opcode(0x83, "ADD A E", 1, 4, lambda: self._add(self.regs.e)),
             0x84: Opcode(0x84, "ADD A H", 1, 4, lambda: self._add(self.regs.h)),
             0x85: Opcode(0x85, "ADD A L", 1, 4, lambda: self._add(self.regs.l)),
-            0x86: Opcode(0x86, "ADD A HL", 1, 8),
+            0x86: Opcode(0x86, "ADD A HL", 1, 8, lambda: self._add(self.mmu.read_byte(self.regs.hl()))),
             0x87: Opcode(0x87, "ADD A A", 1, 4, lambda: self._add(self.regs.a)),
             0x88: Opcode(0x88, "ADC A B", 1, 4, lambda: self._adc(self.regs.b)),
             0x89: Opcode(0x89, "ADC A C", 1, 4, lambda: self._adc(self.regs.c)),
@@ -171,7 +171,7 @@ class Opcodes(object):
             0x8B: Opcode(0x8B, "ADC A E", 1, 4, lambda: self._adc(self.regs.e)),
             0x8C: Opcode(0x8C, "ADC A H", 1, 4, lambda: self._adc(self.regs.h)),
             0x8D: Opcode(0x8D, "ADC A L", 1, 4, lambda: self._adc(self.regs.l)),
-            0x8E: Opcode(0x8E, "ADC A HL", 1, 8),
+            0x8E: Opcode(0x8E, "ADC A HL", 1, 8, lambda: self._adc(self.mmu.read_byte(self.regs.hl()))),
             0x8F: Opcode(0x8F, "ADC A A", 1, 4, lambda: self._adc(self.regs.a)),
             0x90: Opcode(0x90, "SUB A B", 1, 4, lambda: self._sub(self.regs.b)),
             0x91: Opcode(0x91, "SUB A C", 1, 4, lambda: self._sub(self.regs.c)),
@@ -179,7 +179,7 @@ class Opcodes(object):
             0x93: Opcode(0x93, "SUB A E", 1, 4, lambda: self._sub(self.regs.e)),
             0x94: Opcode(0x94, "SUB A H", 1, 4, lambda: self._sub(self.regs.h)),
             0x95: Opcode(0x95, "SUB A L", 1, 4, lambda: self._sub(self.regs.l)),
-            0x96: Opcode(0x96, "SUB A HL", 1, 8),
+            0x96: Opcode(0x96, "SUB A HL", 1, 8, lambda: self._sub(self.mmu.read_byte(self.regs.hl()))),
             0x97: Opcode(0x97, "SUB A A", 1, 4, lambda: self._sub(self.regs.a)),
             0x98: Opcode(0x98, "SBC A B", 1, 4, lambda: self._subc(self.regs.b)),
             0x99: Opcode(0x99, "SBC A C", 1, 4, lambda: self._subc(self.regs.c)),
@@ -187,7 +187,7 @@ class Opcodes(object):
             0x9B: Opcode(0x9B, "SBC A E", 1, 4, lambda: self._subc(self.regs.e)),
             0x9C: Opcode(0x9C, "SBC A H", 1, 4, lambda: self._subc(self.regs.h)),
             0x9D: Opcode(0x9D, "SBC A L", 1, 4, lambda: self._subc(self.regs.l)),
-            0x9E: Opcode(0x9E, "SBC A HL", 1, 8),
+            0x9E: Opcode(0x9E, "SBC A HL", 1, 8, lambda: self._subc(self.mmu.read_byte(self.regs.hl()))),
             0x9F: Opcode(0x9F, "SBC A A", 1, 4, lambda: self._subc(self.regs.a)),
             0xA0: Opcode(0xA0, "AND A B", 1, 4, lambda: self._and(self.regs.b)),
             0xA1: Opcode(0xA1, "AND A C", 1, 4, lambda: self._and(self.regs.c)),
@@ -195,7 +195,7 @@ class Opcodes(object):
             0xA3: Opcode(0xA3, "AND A E", 1, 4, lambda: self._and(self.regs.e)),
             0xA4: Opcode(0xA4, "AND A H", 1, 4, lambda: self._and(self.regs.h)),
             0xA5: Opcode(0xA5, "AND A L", 1, 4, lambda: self._and(self.regs.l)),
-            0xA6: Opcode(0xA6, "AND A HL", 1, 8),
+            0xA6: Opcode(0xA6, "AND A HL", 1, 8, lambda: self._and(self.mmu.read_byte(self.regs.hl()))),
             0xA7: Opcode(0xA7, "AND A A", 1, 4, lambda: self._and(self.regs.a)),
             0xA8: Opcode(0xA8, "XOR A B", 1, 4, lambda: self._xor(self.regs.b)),
             0xA9: Opcode(0xA9, "XOR A C", 1, 4, lambda: self._xor(self.regs.c)),
@@ -203,7 +203,7 @@ class Opcodes(object):
             0xAB: Opcode(0xAB, "XOR A E", 1, 4, lambda: self._xor(self.regs.e)),
             0xAC: Opcode(0xAC, "XOR A H", 1, 4, lambda: self._xor(self.regs.h)),
             0xAD: Opcode(0xAD, "XOR A L", 1, 4, lambda: self._xor(self.regs.l)),
-            0xAE: Opcode(0xAE, "XOR A HL", 1, 8),
+            0xAE: Opcode(0xAE, "XOR A HL", 1, 8, lambda: self._xor(self.mmu.read_byte(self.regs.hl()))),
             0xAF: Opcode(0xAF, "XOR A A", 1, 4, lambda: self._xor(self.regs.a)),
             0xB0: Opcode(0xB0, "OR A B", 1, 4, lambda: self._or(self.regs.b)),
             0xB1: Opcode(0xB1, "OR A C", 1, 4, lambda: self._or(self.regs.c)),
@@ -211,7 +211,7 @@ class Opcodes(object):
             0xB3: Opcode(0xB3, "OR A E", 1, 4, lambda: self._or(self.regs.e)),
             0xB4: Opcode(0xB4, "OR A H", 1, 4, lambda: self._or(self.regs.h)),
             0xB5: Opcode(0xB5, "OR A L", 1, 4, lambda: self._or(self.regs.l)),
-            0xB6: Opcode(0xB6, "OR A HL", 1, 8),
+            0xB6: Opcode(0xB6, "OR A HL", 1, 8, lambda: self._or(self.mmu.read_byte(self.regs.hl()))),
             0xB7: Opcode(0xB7, "OR A A", 1, 4, lambda: self._or(self.regs.a)),
             0xB8: Opcode(0xB8, "CP A B", 1, 4, lambda: self._cp(self.regs.b)),
             0xB9: Opcode(0xB9, "CP A C", 1, 4, lambda: self._cp(self.regs.c)),
@@ -219,7 +219,7 @@ class Opcodes(object):
             0xBB: Opcode(0xBB, "CP A E", 1, 4, lambda: self._cp(self.regs.e)),
             0xBC: Opcode(0xBC, "CP A H", 1, 4, lambda: self._cp(self.regs.h)),
             0xBD: Opcode(0xBD, "CP A L", 1, 4, lambda: self._cp(self.regs.l)),
-            0xBE: Opcode(0xBE, "CP A HL", 1, 8),
+            0xBE: Opcode(0xBE, "CP A HL", 1, 8, lambda: self._cp(self.mmu.read_byte(self.regs.hl()))),
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
             0xC0: Opcode(0xC0, "RET NZ", 1, 20),
             0xC1: Opcode(0xC1, "POP BC", 1, 12),
@@ -227,7 +227,7 @@ class Opcodes(object):
             0xC3: Opcode(0xC3, "JP a16", 3, 16),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24),
             0xC5: Opcode(0xC5, "PUSH BC", 1, 16),
-            0xC6: Opcode(0xC6, "ADD A n8", 2, 8),
+            0xC6: Opcode(0xC6, "ADD A n8", 2, 8, lambda: self._add(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xC7: Opcode(0xC7, "RST $00", 1, 16),
             0xC8: Opcode(0xC8, "RET Z", 1, 20),
             0xC9: Opcode(0xC9, "RET", 1, 16),
@@ -235,7 +235,7 @@ class Opcodes(object):
             0xCB: Opcode(0xCB, "PREFIX", 1, 4),
             0xCC: Opcode(0xCC, "CALL Z a16", 3, 24),
             0xCD: Opcode(0xCD, "CALL a16", 3, 24),
-            0xCE: Opcode(0xCE, "ADC A n8", 2, 8),
+            0xCE: Opcode(0xCE, "ADC A n8", 2, 8, lambda: self._adc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xCF: Opcode(0xCF, "RST $08", 1, 16),
             0xD0: Opcode(0xD0, "RET NC", 1, 20),
             0xD1: Opcode(0xD1, "POP DE", 1, 12),
@@ -243,7 +243,7 @@ class Opcodes(object):
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24),
             0xD5: Opcode(0xD5, "PUSH DE", 1, 16),
-            0xD6: Opcode(0xD6, "SUB A n8", 2, 8),
+            0xD6: Opcode(0xD6, "SUB A n8", 2, 8, lambda: self._sub(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xD7: Opcode(0xD7, "RST $10", 1, 16),
             0xD8: Opcode(0xD8, "RET C", 1, 20),
             0xD9: Opcode(0xD9, "RETI", 1, 16),
@@ -251,7 +251,7 @@ class Opcodes(object):
             0xDB: Opcode(0xDB, "ILLEGAL_DB", 1, 4),
             0xDC: Opcode(0xDC, "CALL C a16", 3, 24),
             0xDD: Opcode(0xDD, "ILLEGAL_DD", 1, 4),
-            0xDE: Opcode(0xDE, "SBC A n8", 2, 8),
+            0xDE: Opcode(0xDE, "SBC A n8", 2, 8, lambda: self._subc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xDF: Opcode(0xDF, "RST $18", 1, 16),
             0xE0: Opcode(0xE0, "LDH a8 A", 2, 12),
             0xE1: Opcode(0xE1, "POP HL", 1, 12),
@@ -259,7 +259,7 @@ class Opcodes(object):
             0xE3: Opcode(0xE3, "ILLEGAL_E3", 1, 4),
             0xE4: Opcode(0xE4, "ILLEGAL_E4", 1, 4),
             0xE5: Opcode(0xE5, "PUSH HL", 1, 16),
-            0xE6: Opcode(0xE6, "AND A n8", 2, 8),
+            0xE6: Opcode(0xE6, "AND A n8", 2, 8, lambda: self._and(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xE7: Opcode(0xE7, "RST $20", 1, 16),
             0xE8: Opcode(0xE8, "ADD SP e8", 2, 16),
             0xE9: Opcode(0xE9, "JP HL", 1, 4),
@@ -267,7 +267,7 @@ class Opcodes(object):
             0xEB: Opcode(0xEB, "ILLEGAL_EB", 1, 4),
             0xEC: Opcode(0xEC, "ILLEGAL_EC", 1, 4),
             0xED: Opcode(0xED, "ILLEGAL_ED", 1, 4),
-            0xEE: Opcode(0xEE, "XOR A n8", 2, 8),
+            0xEE: Opcode(0xEE, "XOR A n8", 2, 8, lambda: self._xor(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xEF: Opcode(0xEF, "RST $28", 1, 16),
             0xF0: Opcode(0xF0, "LDH A a8", 2, 12),
             0xF1: Opcode(0xF1, "POP AF", 1, 12),
@@ -275,7 +275,7 @@ class Opcodes(object):
             0xF3: Opcode(0xF3, "DI", 1, 4),
             0xF4: Opcode(0xF4, "ILLEGAL_F4", 1, 4),
             0xF5: Opcode(0xF5, "PUSH AF", 1, 16),
-            0xF6: Opcode(0xF6, "OR A n8", 2, 8),
+            0xF6: Opcode(0xF6, "OR A n8", 2, 8, lambda: self._or(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xF7: Opcode(0xF7, "RST $30", 1, 16),
             0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12),
             0xF9: Opcode(0xF9, "LD SP HL", 1, 8),
@@ -283,7 +283,7 @@ class Opcodes(object):
             0xFB: Opcode(0xFB, "EI", 1, 4),
             0xFC: Opcode(0xFC, "ILLEGAL_FC", 1, 4),
             0xFD: Opcode(0xFD, "ILLEGAL_FD", 1, 4),
-            0xFE: Opcode(0xFE, "CP A n8", 2, 8),
+            0xFE: Opcode(0xFE, "CP A n8", 2, 8, lambda: self._cp(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xFF: Opcode(0xFF, "RST $38", 1, 16),
         }
 
@@ -431,5 +431,17 @@ class Opcodes(object):
     
     def _ldr_hl(self, dst):
         # load to the 8-bit register r, data from mem address in HL.
-        value = self.mmu.read_byte(self.regs.read_hl())
+        value = self.mmu.read_byte(self.regs.hl())
         setattr(self, dst, value)
+    
+    def _ldhl_r(self, src):
+        # load to the mem address in HL data form 8-bit register r.
+        self.mmu.write_byte(self.regs.hl(), getattr(self, src))
+    
+    def _ld_bc_a(self):
+        # Load to address in BC data from the 8-bit A register.
+        self.mmu.write_byte(self.regs.bc(), self.regs.a)
+
+    def _ld_de_a(self):
+        # Load to address in DE data from the 8-bit A register.
+        self.mmu.write_byte(self.regs.de(), self.regs.a)
