@@ -29,7 +29,13 @@ class Register(object):
 
 class MMU(object):
     def __init__(self):
-        pass
+        self.memory = np.zeros(65536, dtype=np.uint8)
+    
+    def read_byte(self, address):
+        return self.memory[address]
+    
+    def write_byte(self, address, value):
+        self.memory[address] = value
 
 class CPU(object):
     def __init__(self, regs, mmu):
