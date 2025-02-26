@@ -28,6 +28,10 @@ class Register(object):
         self.sp = np.uint16(0)
     
     def read_hl(self): return (self.h << 8) | self.l
+    def read_pc_inc(self):
+        value = np.uint16(self.pc)
+        self.pc += 1
+        return value
 
 class MMU(object):
     def __init__(self):
