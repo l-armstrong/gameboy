@@ -26,6 +26,8 @@ class Register(object):
         # 16 bit regs
         self.pc = np.uint16(0)
         self.sp = np.uint16(0)
+    
+    def read_hl(self): return (self.h << 8) | self.l
 
 class MMU(object):
     def __init__(self):
