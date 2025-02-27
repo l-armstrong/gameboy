@@ -82,7 +82,7 @@ class Opcodes(object):
             0x33: Opcode(0x33, "INC SP", 1, 8, lambda: self._inc_rr("SP")),
             0x34: Opcode(0x34, "INC (HL)", 1, 12, lambda: self._inc_hl()),
             0x35: Opcode(0x35, "DEC HL", 1, 12, lambda: self._dec_hl()),
-            0x36: Opcode(0x36, "LD HL n8", 2, 12),
+            0x36: Opcode(0x36, "LD HL n8", 2, 12, lambda: self._ldhl_n()),
             0x37: Opcode(0x37, "SCF", 1, 4),
             0x38: Opcode(0x38, "JR C e8", 2, 12),
             0x39: Opcode(0x39, "ADD HL SP", 1, 8),
@@ -529,3 +529,16 @@ class Opcodes(object):
         # 16-bit register HL. The value of HL is decremented  after the memory read.
         self.regs.a = self.mmu.read_byte(self.regs.hl())
         self.regs.set_hl(self.regs.hl() - 1)
+    
+    def _ldhl_n(self):
+        # Load to the absolute address specified by the 16-bit register HL, the immediate data n.
+        n = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1 
+        self.mmu.write_byte(self.regs.hl(), n)
+    
+    def _ldhl_sp(self):
+        # Load to the HL register, 16-bit data calculated by adding the 
+        # signed 8-bit operand e to the 16-bit value of the SP register.
+        n = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1 
+        
