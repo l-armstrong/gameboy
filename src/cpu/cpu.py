@@ -54,7 +54,7 @@ class MMU(object):
         return self.memory[address]
     
     def write_byte(self, address, value):
-        self.memory[address] = value
+        self.memory[address] = np.uint8(value)
 
     def read_word(self, address):
         return self.read_byte(address) | (self.read_byte(address + 1) << 8)

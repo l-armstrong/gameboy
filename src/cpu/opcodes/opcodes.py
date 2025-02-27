@@ -80,8 +80,8 @@ class Opcodes(object):
             0x31: Opcode(0x31, "LD SP n16", 3, 12, lambda: self._ld_rr_nn("SP")),
             0x32: Opcode(0x32, "LD HL- A", 1, 8, lambda: self._ld_hl_a_dec()),
             0x33: Opcode(0x33, "INC SP", 1, 8, lambda: self._inc_rr("SP")),
-            0x34: Opcode(0x34, "INC (HL)", 1, 12),
-            0x35: Opcode(0x35, "DEC HL", 1, 12),
+            0x34: Opcode(0x34, "INC (HL)", 1, 12, lambda: self._inc_hl()),
+            0x35: Opcode(0x35, "DEC HL", 1, 12, lambda: self._dec_hl()),
             0x36: Opcode(0x36, "LD HL n8", 2, 12),
             0x37: Opcode(0x37, "SCF", 1, 4),
             0x38: Opcode(0x38, "JR C e8", 2, 12),
@@ -392,6 +392,22 @@ class Opcodes(object):
         # set half carry flag
         if (getattr(self, reg) & 0x0F) == 0: self.regs.f |= self.regs.HALF_CARRY_FLAG
 
+    def _dec_hl(self):
+        # Decrements data at the absolute address specified by the 16-bit register HL
+        val = self.mmu.read_byte(self.regs.hl())
+        # Increments data
+        val = val + 1
+        # clear flags
+        self.regs.f = 0
+        # check for zero
+        if (not val): self.regs.f |= self.regs.ZERO_FLAG
+        # set sub flag
+        self.regs.f |= self.regs.SUB_FLAG
+        # set half carry flag
+        if val & 0x0F == 0x0F: self.regs.f |= self.regs.HALF_CARRY_FLAG
+        # write value back to address specified by the 16-bit register HL
+        self.mmu.write_byte(self.regs.hl(), val)
+
     def _inc(self, reg):
         # increments data in the 8-bit register r.
         setattr(self, reg, getattr(self, reg) + 1)
@@ -410,6 +426,22 @@ class Opcodes(object):
             case "DE": self.regs.set_de(self.regs.de() + 1)
             case "HL": self.regs.set_hl(self.regs.hl() + 1)
             case "SP": self.regs.set_sp(self.regs.sp() + 1)
+
+    def _inc_hl(self):
+        # Increments data at the absolute address specified by the 16-bit register HL
+        val = self.mmu.read_byte(self.regs.hl())
+        # Increments data
+        val = val + 1
+        # clear flags
+        self.regs.f = 0
+        # check for zero
+        if (not val): self.regs.f |= self.regs.ZERO_FLAG
+        # set sub flag
+        self.regs.f |= self.regs.SUB_FLAG
+        # set half carry flag
+        if val & 0x0F == 0x0F: self.regs.f |= self.regs.HALF_CARRY_FLAG
+        # write value back to address specified by the 16-bit register HL
+        self.mmu.write_byte(self.regs.hl(), val)
     
     def _cp(self, value):
         # subtracts from a registers and updates
