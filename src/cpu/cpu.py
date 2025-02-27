@@ -30,7 +30,17 @@ class Register(object):
     def hl(self): return (self.h << 8) | self.l
     def bc(self): return (self.b << 8) | self.c 
     def de(self): return (self.d << 8) | self.e
-
+    def set_hl(self, value): 
+        self.h = (value & 0xFF00) >> 8
+        self.l = (value & 0x00FF)
+    def set_bc(self, value):
+        self.b = (value & 0xFF00) >> 8
+        self.c = (value & 0x00FF)
+    def set_de(self, value):
+        self.d = (value & 0xFF00) >> 8
+        self.e = (value & 0x00FF)
+    def set_sp(self, value): self.sp = value
+    
     def read_pc_inc(self):
         value = np.uint16(self.pc)
         self.pc += 1
@@ -44,7 +54,7 @@ class MMU(object):
         return self.memory[address]
     
     def write_byte(self, address, value):
-        self.memory[address] = value
+        self.memory[address] = np.uint8(value)
 
     def read_word(self, address):
         return self.read_byte(address) | (self.read_byte(address + 1) << 8)
