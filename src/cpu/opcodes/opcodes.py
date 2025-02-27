@@ -1,6 +1,5 @@
 # from cpu.cpu import Register, MMU
 
-
 class Opcode(object):
     def __init__(self, code, mnemonic, length, tcycles, instruction=None):
         self.code = code
@@ -30,7 +29,7 @@ class Opcodes(object):
         REG_L = "self.regs.l"
         return {
             0x00: Opcode(0x00, "NOP", 1, 4),
-            0x01: Opcode(0x01, "LD BC n16", 3, 12),
+            0x01: Opcode(0x01, "LD BC n16", 3, 12, lambda: self._ld_rr_nn("BC")),
             0x02: Opcode(0x02, "LD BC A", 1, 8, lambda: self._ld_bc_a()),
             0x03: Opcode(0x03, "INC BC", 1, 8),
             0x04: Opcode(0x04, "INC B", 1, 4, lambda: self._inc(REG_B)),
@@ -46,7 +45,7 @@ class Opcodes(object):
             0x0E: Opcode(0x0E, "LD C n8", 2, 8, lambda: self._ldn(REG_C)),
             0x0F: Opcode(0x0F, "RRCA", 1, 4),
             0x10: Opcode(0x10, "STOP n8", 2, 4),
-            0x11: Opcode(0x11, "LD DE n16", 3, 12),
+            0x11: Opcode(0x11, "LD DE n16", 3, 12, lambda: self._ld_rr_nn("DE")),
             0x12: Opcode(0x12, "LD DE A", 1, 8, lambda: self._ld_de_a()),
             0x13: Opcode(0x13, "INC DE", 1, 8),
             0x14: Opcode(0x14, "INC D", 1, 4, lambda: self._inc(REG_D)),
@@ -62,8 +61,8 @@ class Opcodes(object):
             0x1E: Opcode(0x1E, "LD E n8", 2, 8, lambda: self._ldn(REG_E)),
             0x1F: Opcode(0x1F, "RRA", 1, 4),
             0x20: Opcode(0x20, "JR NZ e8", 2, 12),
-            0x21: Opcode(0x21, "LD HL n16", 3, 12),
-            0x22: Opcode(0x22, "LD HL+ A", 1, 8),
+            0x21: Opcode(0x21, "LD HL n16", 3, 12, lambda: self._ld_rr_nn("HL")),
+            0x22: Opcode(0x22, "LD HL+ A", 1, 8, lambda: self._ld_hl_a_inc()),
             0x23: Opcode(0x23, "INC HL", 1, 8),
             0x24: Opcode(0x24, "INC H", 1, 4, lambda: self._inc(REG_H)),
             0x25: Opcode(0x25, "DEC H", 1, 4, lambda: self._dec(REG_H)),
@@ -71,15 +70,15 @@ class Opcodes(object):
             0x27: Opcode(0x27, "DAA", 1, 4),
             0x28: Opcode(0x28, "JR Z e8", 2, 12),
             0x29: Opcode(0x29, "ADD HL HL", 1, 8),
-            0x2A: Opcode(0x2A, "LD A HL+", 1, 8),
+            0x2A: Opcode(0x2A, "LD A HL+", 1, 8, lambda: self._ld_a_hl_inc()),
             0x2B: Opcode(0x2B, "DEC HL", 1, 8),
             0x2C: Opcode(0x2C, "INC L", 1, 4, lambda: self._inc(REG_L)),
             0x2D: Opcode(0x2D, "DEC L", 1, 4, lambda: self._dec(REG_L)),
             0x2E: Opcode(0x2E, "LD L n8", 2, 8, lambda: self._ldn(REG_L)),
             0x2F: Opcode(0x2F, "CPL", 1, 4),
             0x30: Opcode(0x30, "JR NC e8", 2, 12),
-            0x31: Opcode(0x31, "LD SP n16", 3, 12),
-            0x32: Opcode(0x32, "LD HL- A", 1, 8),
+            0x31: Opcode(0x31, "LD SP n16", 3, 12, lambda: self._ld_rr_nn("SP")),
+            0x32: Opcode(0x32, "LD HL- A", 1, 8, lambda: self._ld_hl_a_dec()),
             0x33: Opcode(0x33, "INC SP", 1, 8),
             0x34: Opcode(0x34, "INC HL", 1, 12),
             0x35: Opcode(0x35, "DEC HL", 1, 12),
@@ -87,7 +86,7 @@ class Opcodes(object):
             0x37: Opcode(0x37, "SCF", 1, 4),
             0x38: Opcode(0x38, "JR C e8", 2, 12),
             0x39: Opcode(0x39, "ADD HL SP", 1, 8),
-            0x3A: Opcode(0x3A, "LD A HL-", 1, 8),
+            0x3A: Opcode(0x3A, "LD A HL-", 1, 8, lambda: self._ld_a_hl_dec()),
             0x3B: Opcode(0x3B, "DEC SP", 1, 8),
             0x3C: Opcode(0x3C, "INC A", 1, 4, lambda: self._inc(REG_A)),
             0x3D: Opcode(0x3D, "DEC A", 1, 4, lambda: self._dec(REG_A)),
@@ -453,3 +452,40 @@ class Opcodes(object):
     def _ld_a_de(self): 
         # Load to the 8-bit A register, data from the absolute address specified by the 16-bit register DE
         self.regs.a = self.mmu.read_byte(self.regs.de())
+    
+    def _ld_rr_nn(self, regs):
+        # Load to the 16-bit register rr, the immediate 16-bit data nn.
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.pc += 1
+        nn = (msb << 8) | lsb
+        match regs:
+            case "BC": self.regs.set_bc(nn)
+            case "DE": self.regs.set_de(nn)
+            case "HL": self.regs.set_hl(nn)
+            case "SP": self.regs.set_sp(nn)
+    
+    def _ld_hl_a_inc(self):
+        # Load to the absolute address specified by the 16-bit register HL, 
+        # data from the 8-bit A register. The value of HL is decremented after the memory write.
+        self.mmu.write_byte(self.regs.hl(), self.regs.a)
+        self.regs.set_hl(self.regs.hl() + 1)
+
+    def _ld_hl_a_dec(self):
+        # Load to the absolute address specified by the 16-bit register HL, data from the 8-bit 
+        # A register. The value of HL is decremented after the memory write
+        self.mmu.write_byte(self.regs.hl(), self.regs.a)
+        self.regs.set_hl(self.regs.hl() - 1)
+    
+    def _ld_a_hl_inc(self):
+        # Load to the 8-bit A register, data from the absolute address specified by the 
+        # 16-bit register HL. The value of HL is incremented after the memory read.
+        self.regs.a = self.mmu.read_byte(self.regs.hl())
+        self.regs.set_hl(self.regs.hl() + 1)
+
+    def _ld_a_hl_dec(self):
+        # Load to the 8-bit A register, data from the absolute address specified by the 
+        # 16-bit register HL. The value of HL is decremented  after the memory read.
+        self.regs.a = self.mmu.read_byte(self.regs.hl())
+        self.regs.set_hl(self.regs.hl() - 1)
