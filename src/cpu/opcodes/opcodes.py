@@ -36,7 +36,7 @@ class Opcodes(object):
             0x05: Opcode(0x05, "DEC B", 1, 4, lambda: self._dec(REG_B)),
             0x06: Opcode(0x06, "LD B n8", 2, 8, lambda: self._ldn(REG_B)),
             0x07: Opcode(0x07, "RLCA", 1, 4),
-            0x08: Opcode(0x08, "LD a16 SP", 3, 20),
+            0x08: Opcode(0x08, "LD a16 SP", 3, 20, lambda: self._ldnn_sp()),
             0x09: Opcode(0x09, "ADD HL BC", 1, 8),
             0x0A: Opcode(0x0A, "LD A BC", 1, 8, lambda: self._ld_a_bc()),
             0x0B: Opcode(0x0B, "DEC BC", 1, 8),
@@ -276,8 +276,8 @@ class Opcodes(object):
             0xF5: Opcode(0xF5, "PUSH AF", 1, 16),
             0xF6: Opcode(0xF6, "OR A n8", 2, 8, lambda: self._or(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xF7: Opcode(0xF7, "RST $30", 1, 16),
-            0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12),
-            0xF9: Opcode(0xF9, "LD SP HL", 1, 8),
+            0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12, lambda: self._ldhl_sp()),
+            0xF9: Opcode(0xF9, "LD SP HL", 1, 8, lambda: self.regs.set_sp(self.regs.hl())),
             0xFA: Opcode(0xFA, "LD A a16", 3, 16),
             0xFB: Opcode(0xFB, "EI", 1, 4),
             0xFC: Opcode(0xFC, "ILLEGAL_FC", 1, 4),
@@ -539,6 +539,25 @@ class Opcodes(object):
     def _ldhl_sp(self):
         # Load to the HL register, 16-bit data calculated by adding the 
         # signed 8-bit operand e to the 16-bit value of the SP register.
-        n = self.mmu.read_byte(self.regs.pc)
+        e = self.mmu.read_byte(self.regs.pc)
+        # increment pc
         self.regs.pc += 1 
-        
+        # set reg HL
+        self.regs.set_hl(np.uint8(self.regs.sp + np.int8(e))) # type: ignore
+        # clear flags 
+        self.f = 0
+        # check for half carry
+        if ((self.regs.sp & 0xF) + (e + 0xF)) > 0xF: self.regs.f |= self.regs.HALF_CARRY_FLAG
+        # check for a carry
+        if ((self.regs.sp  + np.int8(e)) >> 8) != 0: self.regs.f |= self.regs.CARRY_FLAG # type: ignore
+    
+    def _ldnn_sp(self):
+        # Load to the absolute address specified by the 16-bit operand nn, data from the 16-bit SP register
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        nn = (msb << 8) | lsb
+        self.mmu.write_byte(nn, 0x00FF & self.regs.sp)
+        nn += 1
+        self.mmu.write_byte(nn, (self.regs.sp & 0xFF00) >> 8)
