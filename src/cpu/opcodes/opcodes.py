@@ -28,7 +28,7 @@ class Opcodes(object):
         REG_H = "self.regs.h" 
         REG_L = "self.regs.l"
         return {
-            0x00: Opcode(0x00, "NOP", 1, 4),
+            0x00: Opcode(0x00, "NOP", 1, 4, lambda: ()), # This opcode does nothing
             0x01: Opcode(0x01, "LD BC n16", 3, 12, lambda: self._ld_rr_nn("BC")),
             0x02: Opcode(0x02, "LD BC A", 1, 8, lambda: self._ld_bc_a()),
             0x03: Opcode(0x03, "INC BC", 1, 8, lambda: self._inc_rr("BC")),
@@ -252,9 +252,9 @@ class Opcodes(object):
             0xDD: Opcode(0xDD, "ILLEGAL_DD", 1, 4),
             0xDE: Opcode(0xDE, "SBC A n8", 2, 8, lambda: self._subc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xDF: Opcode(0xDF, "RST $18", 1, 16),
-            0xE0: Opcode(0xE0, "LDH a8 A", 2, 12),
+            0xE0: Opcode(0xE0, "LDH a8 A", 2, 12, lambda: self._ldhn_a()),
             0xE1: Opcode(0xE1, "POP HL", 1, 12),
-            0xE2: Opcode(0xE2, "LDH C A", 1, 8),
+            0xE2: Opcode(0xE2, "LDH C A", 1, 8, lambda: self._ldhc_a()),
             0xE3: Opcode(0xE3, "ILLEGAL_E3", 1, 4),
             0xE4: Opcode(0xE4, "ILLEGAL_E4", 1, 4),
             0xE5: Opcode(0xE5, "PUSH HL", 1, 16),
@@ -262,15 +262,15 @@ class Opcodes(object):
             0xE7: Opcode(0xE7, "RST $20", 1, 16),
             0xE8: Opcode(0xE8, "ADD SP e8", 2, 16),
             0xE9: Opcode(0xE9, "JP HL", 1, 4),
-            0xEA: Opcode(0xEA, "LD a16 A", 3, 16),
+            0xEA: Opcode(0xEA, "LD a16 A", 3, 16, lambda: self._ldnn_a()),
             0xEB: Opcode(0xEB, "ILLEGAL_EB", 1, 4),
             0xEC: Opcode(0xEC, "ILLEGAL_EC", 1, 4),
             0xED: Opcode(0xED, "ILLEGAL_ED", 1, 4),
             0xEE: Opcode(0xEE, "XOR A n8", 2, 8, lambda: self._xor(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xEF: Opcode(0xEF, "RST $28", 1, 16),
-            0xF0: Opcode(0xF0, "LDH A a8", 2, 12),
+            0xF0: Opcode(0xF0, "LDH A a8", 2, 12, lambda: self._ldha_n()),
             0xF1: Opcode(0xF1, "POP AF", 1, 12),
-            0xF2: Opcode(0xF2, "LDH A C", 1, 8),
+            0xF2: Opcode(0xF2, "LDH A C", 1, 8, lambda: self._ldha_c()),
             0xF3: Opcode(0xF3, "DI", 1, 4),
             0xF4: Opcode(0xF4, "ILLEGAL_F4", 1, 4),
             0xF5: Opcode(0xF5, "PUSH AF", 1, 16),
@@ -278,7 +278,7 @@ class Opcodes(object):
             0xF7: Opcode(0xF7, "RST $30", 1, 16),
             0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12, lambda: self._ldhl_sp()),
             0xF9: Opcode(0xF9, "LD SP HL", 1, 8, lambda: self.regs.set_sp(self.regs.hl())),
-            0xFA: Opcode(0xFA, "LD A a16", 3, 16),
+            0xFA: Opcode(0xFA, "LD A a16", 3, 16, lambda: self._lda_nn()),
             0xFB: Opcode(0xFB, "EI", 1, 4),
             0xFC: Opcode(0xFC, "ILLEGAL_FC", 1, 4),
             0xFD: Opcode(0xFD, "ILLEGAL_FD", 1, 4),
@@ -561,3 +561,49 @@ class Opcodes(object):
         self.mmu.write_byte(nn, 0x00FF & self.regs.sp)
         nn += 1
         self.mmu.write_byte(nn, (self.regs.sp & 0xFF00) >> 8)
+    
+    def _ldnn_a(self):
+        # Load to the absolute address specified by the 16-bit operand nn, data from the 8-bit A register
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        nn = (msb << 8) | lsb
+        self.mmu.write_byte(nn, self.regs.a)
+    
+    def _lda_nn(self):
+        # Load to the 8-bit A register, data from the absolute address specified by the 16-bit operand nn.
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        nn = (msb << 8) | lsb
+        self.regs.a = self.read_byte(nn)
+    
+    def _ldhn_a(self):
+        # Load to the address specified by the 8-bit immediate data n, data from the 8-bit A register. The
+        # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+        # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+        n = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        self.mmu.write_byte(0xFF00 | n, self.regs.a)
+    
+    def _ldha_n(self):
+        # Load to the 8-bit A register, data from the address specified by the 8-bit immediate data n. The
+        # full 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the
+        # least significant byte to the value of n, so the possible range is 0xFF00-0xFFFF.
+        n = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        self.regs.a = self.mmu.read_byte(0xFF00 | n)
+    
+    def _ldhc_a(self):
+        # Load to the address specified by the 8-bit C register, data from the 8-bit A register. The full
+        # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+        # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
+        self.mmu.write_byte(0xFF00 | self.regs.c, self.regs.a)
+    
+    def _ldha_c(self):
+        # Load to the 8-bit A register, data from the address specified by the 8-bit C register. The full
+        # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
+        # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
+        self.regs.a = self.mmu.read_byte(0xFF00 | self.regs.c)
