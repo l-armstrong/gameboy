@@ -12,7 +12,6 @@ class Opcode(object):
     def __repr__(self):
         return f"{hex(self.code)}: {self.mnemonic}"
 
-
 class Opcodes(object):
     def __init__(self, regs, mmu):
         self.regs = regs
@@ -225,7 +224,7 @@ class Opcodes(object):
             0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
             0xC3: Opcode(0xC3, "JP a16", 3, 16),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24),
-            0xC5: Opcode(0xC5, "PUSH BC", 1, 16),
+            0xC5: Opcode(0xC5, "PUSH BC", 1, 16, lambda: self._push_rr("BC")),
             0xC6: Opcode(0xC6, "ADD A n8", 2, 8, lambda: self._add(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xC7: Opcode(0xC7, "RST $00", 1, 16),
             0xC8: Opcode(0xC8, "RET Z", 1, 20),
@@ -241,7 +240,7 @@ class Opcodes(object):
             0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24),
-            0xD5: Opcode(0xD5, "PUSH DE", 1, 16),
+            0xD5: Opcode(0xD5, "PUSH DE", 1, 16, lambda: self._push_rr("DE")),
             0xD6: Opcode(0xD6, "SUB A n8", 2, 8, lambda: self._sub(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xD7: Opcode(0xD7, "RST $10", 1, 16),
             0xD8: Opcode(0xD8, "RET C", 1, 20),
@@ -257,7 +256,7 @@ class Opcodes(object):
             0xE2: Opcode(0xE2, "LDH C A", 1, 8, lambda: self._ldhc_a()),
             0xE3: Opcode(0xE3, "ILLEGAL_E3", 1, 4),
             0xE4: Opcode(0xE4, "ILLEGAL_E4", 1, 4),
-            0xE5: Opcode(0xE5, "PUSH HL", 1, 16),
+            0xE5: Opcode(0xE5, "PUSH HL", 1, 16, lambda: self._push_rr("HL")),
             0xE6: Opcode(0xE6, "AND A n8", 2, 8, lambda: self._and(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xE7: Opcode(0xE7, "RST $20", 1, 16),
             0xE8: Opcode(0xE8, "ADD SP e8", 2, 16),
@@ -273,7 +272,7 @@ class Opcodes(object):
             0xF2: Opcode(0xF2, "LDH A C", 1, 8, lambda: self._ldha_c()),
             0xF3: Opcode(0xF3, "DI", 1, 4),
             0xF4: Opcode(0xF4, "ILLEGAL_F4", 1, 4),
-            0xF5: Opcode(0xF5, "PUSH AF", 1, 16),
+            0xF5: Opcode(0xF5, "PUSH AF", 1, 16, lambda: self._push_rr("AF")),
             0xF6: Opcode(0xF6, "OR A n8", 2, 8, lambda: self._or(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xF7: Opcode(0xF7, "RST $30", 1, 16),
             0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12, lambda: self._ldhl_sp()),
@@ -622,3 +621,25 @@ class Opcodes(object):
             case "DE": self.regs.set_de(nn)
             case "HL": self.regs.set_hl(nn)
             case "AF": self.regs.set_af(nn)
+    
+    def _push_rr(self, regs):
+        # Push to the stack memory, data from the 16-bit register rr.
+        self.regs.set_sp(self.regs.sp - 1)
+        match regs:
+            case "BC":
+                self.mmu.write_byte(self.regs.sp, self.regs.b)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.c)
+            case "DE": 
+                self.mmu.write_byte(self.regs.sp, self.regs.d)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.e)
+            case "HL":
+                self.mmu.write_byte(self.regs.sp, self.regs.h)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.l)
+            case "AF":
+                self.mmu.write_byte(self.regs.sp, self.regs.a)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.f)
+        
