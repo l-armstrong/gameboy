@@ -221,7 +221,7 @@ class Opcodes(object):
             0xBE: Opcode(0xBE, "CP A HL", 1, 8, lambda: self._cp(self.mmu.read_byte(self.regs.hl()))),
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
             0xC0: Opcode(0xC0, "RET NZ", 1, 20),
-            0xC1: Opcode(0xC1, "POP BC", 1, 12),
+            0xC1: Opcode(0xC1, "POP BC", 1, 12, lambda: self._pop_rr("BC")),
             0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
             0xC3: Opcode(0xC3, "JP a16", 3, 16),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24),
@@ -237,7 +237,7 @@ class Opcodes(object):
             0xCE: Opcode(0xCE, "ADC A n8", 2, 8, lambda: self._adc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xCF: Opcode(0xCF, "RST $08", 1, 16),
             0xD0: Opcode(0xD0, "RET NC", 1, 20),
-            0xD1: Opcode(0xD1, "POP DE", 1, 12),
+            0xD1: Opcode(0xD1, "POP DE", 1, 12, lambda: self._pop_rr("DE")),
             0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24),
@@ -253,7 +253,7 @@ class Opcodes(object):
             0xDE: Opcode(0xDE, "SBC A n8", 2, 8, lambda: self._subc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xDF: Opcode(0xDF, "RST $18", 1, 16),
             0xE0: Opcode(0xE0, "LDH a8 A", 2, 12, lambda: self._ldhn_a()),
-            0xE1: Opcode(0xE1, "POP HL", 1, 12),
+            0xE1: Opcode(0xE1, "POP HL", 1, 12, lambda: self._pop_rr("HL")),
             0xE2: Opcode(0xE2, "LDH C A", 1, 8, lambda: self._ldhc_a()),
             0xE3: Opcode(0xE3, "ILLEGAL_E3", 1, 4),
             0xE4: Opcode(0xE4, "ILLEGAL_E4", 1, 4),
@@ -269,7 +269,7 @@ class Opcodes(object):
             0xEE: Opcode(0xEE, "XOR A n8", 2, 8, lambda: self._xor(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xEF: Opcode(0xEF, "RST $28", 1, 16),
             0xF0: Opcode(0xF0, "LDH A a8", 2, 12, lambda: self._ldha_n()),
-            0xF1: Opcode(0xF1, "POP AF", 1, 12),
+            0xF1: Opcode(0xF1, "POP AF", 1, 12, lambda: self._pop_rr("AF")),
             0xF2: Opcode(0xF2, "LDH A C", 1, 8, lambda: self._ldha_c()),
             0xF3: Opcode(0xF3, "DI", 1, 4),
             0xF4: Opcode(0xF4, "ILLEGAL_F4", 1, 4),
@@ -607,3 +607,18 @@ class Opcodes(object):
         # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
         # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
         self.regs.a = self.mmu.read_byte(0xFF00 | self.regs.c)
+    
+    def _pop_rr(self, regs):
+        # Pops to the 16-bit register rr, data from the stack memory.
+        # This instruction does not do calculations that affect flags, but POP AF completely replaces the
+        # F register value, so all flags are changed based on the 8-bit data that is read from memory.
+        lsb = self.mmu.read_byte(self.regs.sp)
+        self.regs.sp += 1
+        msb = self.mmu.read_byte(self.regs.sp)
+        self.regs.sp += 1
+        nn = (msb << 8) | lsb
+        match regs:
+            case "BC": self.regs.set_bc(nn)
+            case "DE": self.regs.set_de(nn)
+            case "HL": self.regs.set_hl(nn)
+            case "AF": self.regs.set_af(nn)
