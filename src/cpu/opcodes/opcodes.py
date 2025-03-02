@@ -12,7 +12,6 @@ class Opcode(object):
     def __repr__(self):
         return f"{hex(self.code)}: {self.mnemonic}"
 
-
 class Opcodes(object):
     def __init__(self, regs, mmu):
         self.regs = regs
@@ -35,7 +34,7 @@ class Opcodes(object):
             0x04: Opcode(0x04, "INC B", 1, 4, lambda: self._inc(REG_B)),
             0x05: Opcode(0x05, "DEC B", 1, 4, lambda: self._dec(REG_B)),
             0x06: Opcode(0x06, "LD B n8", 2, 8, lambda: self._ldn(REG_B)),
-            0x07: Opcode(0x07, "RLCA", 1, 4),
+            0x07: Opcode(0x07, "RLCA", 1, 4, lambda: self._rlca()),
             0x08: Opcode(0x08, "LD a16 SP", 3, 20, lambda: self._ldnn_sp()),
             0x09: Opcode(0x09, "ADD HL BC", 1, 8),
             0x0A: Opcode(0x0A, "LD A BC", 1, 8, lambda: self._ld_a_bc()),
@@ -43,7 +42,7 @@ class Opcodes(object):
             0x0C: Opcode(0x0C, "INC C", 1, 4, lambda: self._inc(REG_C)),
             0x0D: Opcode(0x0D, "DEC C", 1, 4, lambda: self._dec(REG_C)),
             0x0E: Opcode(0x0E, "LD C n8", 2, 8, lambda: self._ldn(REG_C)),
-            0x0F: Opcode(0x0F, "RRCA", 1, 4),
+            0x0F: Opcode(0x0F, "RRCA", 1, 4, lambda: self._rrca()),
             0x10: Opcode(0x10, "STOP n8", 2, 4),
             0x11: Opcode(0x11, "LD DE n16", 3, 12, lambda: self._ld_rr_nn("DE")),
             0x12: Opcode(0x12, "LD DE A", 1, 8, lambda: self._ld_de_a()),
@@ -51,7 +50,7 @@ class Opcodes(object):
             0x14: Opcode(0x14, "INC D", 1, 4, lambda: self._inc(REG_D)),
             0x15: Opcode(0x15, "DEC D", 1, 4, lambda: self._dec(REG_D)),
             0x16: Opcode(0x16, "LD D n8", 2, 8, lambda: self._ldn(REG_D)),
-            0x17: Opcode(0x17, "RLA", 1, 4),
+            0x17: Opcode(0x17, "RLA", 1, 4, lambda: self._rla()),
             0x18: Opcode(0x18, "JR e8", 2, 12),
             0x19: Opcode(0x19, "ADD HL DE", 1, 8),
             0x1A: Opcode(0x1A, "LD A DE", 1, 8, lambda: self._ld_a_de()),
@@ -59,7 +58,7 @@ class Opcodes(object):
             0x1C: Opcode(0x1C, "INC E", 1, 4, lambda: self._inc(REG_E)),
             0x1D: Opcode(0x1D, "DEC E", 1, 4, lambda: self._dec(REG_E)),
             0x1E: Opcode(0x1E, "LD E n8", 2, 8, lambda: self._ldn(REG_E)),
-            0x1F: Opcode(0x1F, "RRA", 1, 4),
+            0x1F: Opcode(0x1F, "RRA", 1, 4, lambda: self._rra()),
             0x20: Opcode(0x20, "JR NZ e8", 2, 12),
             0x21: Opcode(0x21, "LD HL n16", 3, 12, lambda: self._ld_rr_nn("HL")),
             0x22: Opcode(0x22, "LD HL+ A", 1, 8, lambda: self._ld_hl_a_inc()),
@@ -221,13 +220,13 @@ class Opcodes(object):
             0xBE: Opcode(0xBE, "CP A HL", 1, 8, lambda: self._cp(self.mmu.read_byte(self.regs.hl()))),
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
             0xC0: Opcode(0xC0, "RET NZ", 1, 20),
-            0xC1: Opcode(0xC1, "POP BC", 1, 12),
+            0xC1: Opcode(0xC1, "POP BC", 1, 12, lambda: self._pop_rr("BC")),
             0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
             0xC3: Opcode(0xC3, "JP a16", 3, 16),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24),
-            0xC5: Opcode(0xC5, "PUSH BC", 1, 16),
+            0xC5: Opcode(0xC5, "PUSH BC", 1, 16, lambda: self._push_rr("BC")),
             0xC6: Opcode(0xC6, "ADD A n8", 2, 8, lambda: self._add(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xC7: Opcode(0xC7, "RST $00", 1, 16),
+            0xC7: Opcode(0xC7, "RST $00", 1, 16, lambda: self._rst(0x00)),
             0xC8: Opcode(0xC8, "RET Z", 1, 20),
             0xC9: Opcode(0xC9, "RET", 1, 16),
             0xCA: Opcode(0xCA, "JP Z a16", 3, 16),
@@ -235,15 +234,15 @@ class Opcodes(object):
             0xCC: Opcode(0xCC, "CALL Z a16", 3, 24),
             0xCD: Opcode(0xCD, "CALL a16", 3, 24),
             0xCE: Opcode(0xCE, "ADC A n8", 2, 8, lambda: self._adc(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xCF: Opcode(0xCF, "RST $08", 1, 16),
+            0xCF: Opcode(0xCF, "RST $08", 1, 16, lambda: self._rst(0x08)),
             0xD0: Opcode(0xD0, "RET NC", 1, 20),
-            0xD1: Opcode(0xD1, "POP DE", 1, 12),
+            0xD1: Opcode(0xD1, "POP DE", 1, 12, lambda: self._pop_rr("DE")),
             0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24),
-            0xD5: Opcode(0xD5, "PUSH DE", 1, 16),
+            0xD5: Opcode(0xD5, "PUSH DE", 1, 16, lambda: self._push_rr("DE")),
             0xD6: Opcode(0xD6, "SUB A n8", 2, 8, lambda: self._sub(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xD7: Opcode(0xD7, "RST $10", 1, 16),
+            0xD7: Opcode(0xD7, "RST $10", 1, 16, lambda: self._rst(0x10)),
             0xD8: Opcode(0xD8, "RET C", 1, 20),
             0xD9: Opcode(0xD9, "RETI", 1, 16),
             0xDA: Opcode(0xDA, "JP C a16", 3, 16),
@@ -251,15 +250,15 @@ class Opcodes(object):
             0xDC: Opcode(0xDC, "CALL C a16", 3, 24),
             0xDD: Opcode(0xDD, "ILLEGAL_DD", 1, 4),
             0xDE: Opcode(0xDE, "SBC A n8", 2, 8, lambda: self._subc(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xDF: Opcode(0xDF, "RST $18", 1, 16),
+            0xDF: Opcode(0xDF, "RST $18", 1, 16, lambda: self._rst(0x18)),
             0xE0: Opcode(0xE0, "LDH a8 A", 2, 12, lambda: self._ldhn_a()),
-            0xE1: Opcode(0xE1, "POP HL", 1, 12),
+            0xE1: Opcode(0xE1, "POP HL", 1, 12, lambda: self._pop_rr("HL")),
             0xE2: Opcode(0xE2, "LDH C A", 1, 8, lambda: self._ldhc_a()),
             0xE3: Opcode(0xE3, "ILLEGAL_E3", 1, 4),
             0xE4: Opcode(0xE4, "ILLEGAL_E4", 1, 4),
-            0xE5: Opcode(0xE5, "PUSH HL", 1, 16),
+            0xE5: Opcode(0xE5, "PUSH HL", 1, 16, lambda: self._push_rr("HL")),
             0xE6: Opcode(0xE6, "AND A n8", 2, 8, lambda: self._and(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xE7: Opcode(0xE7, "RST $20", 1, 16),
+            0xE7: Opcode(0xE7, "RST $20", 1, 16, lambda: self._rst(0x20)),
             0xE8: Opcode(0xE8, "ADD SP e8", 2, 16),
             0xE9: Opcode(0xE9, "JP HL", 1, 4),
             0xEA: Opcode(0xEA, "LD a16 A", 3, 16, lambda: self._ldnn_a()),
@@ -267,15 +266,15 @@ class Opcodes(object):
             0xEC: Opcode(0xEC, "ILLEGAL_EC", 1, 4),
             0xED: Opcode(0xED, "ILLEGAL_ED", 1, 4),
             0xEE: Opcode(0xEE, "XOR A n8", 2, 8, lambda: self._xor(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xEF: Opcode(0xEF, "RST $28", 1, 16),
+            0xEF: Opcode(0xEF, "RST $28", 1, 16, lambda: self._rst(0x28)),
             0xF0: Opcode(0xF0, "LDH A a8", 2, 12, lambda: self._ldha_n()),
-            0xF1: Opcode(0xF1, "POP AF", 1, 12),
+            0xF1: Opcode(0xF1, "POP AF", 1, 12, lambda: self._pop_rr("AF")),
             0xF2: Opcode(0xF2, "LDH A C", 1, 8, lambda: self._ldha_c()),
             0xF3: Opcode(0xF3, "DI", 1, 4),
             0xF4: Opcode(0xF4, "ILLEGAL_F4", 1, 4),
-            0xF5: Opcode(0xF5, "PUSH AF", 1, 16),
+            0xF5: Opcode(0xF5, "PUSH AF", 1, 16, lambda: self._push_rr("AF")),
             0xF6: Opcode(0xF6, "OR A n8", 2, 8, lambda: self._or(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xF7: Opcode(0xF7, "RST $30", 1, 16),
+            0xF7: Opcode(0xF7, "RST $30", 1, 16, lambda: self._rst(0x30)),
             0xF8: Opcode(0xF8, "LD HL SP e8", 2, 12, lambda: self._ldhl_sp()),
             0xF9: Opcode(0xF9, "LD SP HL", 1, 8, lambda: self.regs.set_sp(self.regs.hl())),
             0xFA: Opcode(0xFA, "LD A a16", 3, 16, lambda: self._lda_nn()),
@@ -283,7 +282,7 @@ class Opcodes(object):
             0xFC: Opcode(0xFC, "ILLEGAL_FC", 1, 4),
             0xFD: Opcode(0xFD, "ILLEGAL_FD", 1, 4),
             0xFE: Opcode(0xFE, "CP A n8", 2, 8, lambda: self._cp(self.mmu.read_byte(self.regs.read_pc_inc()))),
-            0xFF: Opcode(0xFF, "RST $38", 1, 16),
+            0xFF: Opcode(0xFF, "RST $38", 1, 16, lambda: self._rst(0x38)),
         }
 
     def _and(self, value):
@@ -332,7 +331,7 @@ class Opcodes(object):
     def _adc(self, value):
         # perform add operation on 8bit values, carry and reg a.
         # check if carry bit is set
-        carry = 1 if (self.regs.f >> 4) & 0xF else 0
+        carry = 1 if self.regs.f & (1 << 4) else 0
         res = self.regs.a + value + carry
         # clear flags
         self.regs.f = 0
@@ -365,7 +364,7 @@ class Opcodes(object):
 
     def _subc(self, value):
         # perform sub operation on 8bit values, carry and reg a.
-        carry = 1 if (self.regs.f >> 4) & 0xF else 0
+        carry = 1 if self.regs.f & (1 << 4) else 0
         res = self.regs.a - value - carry 
         # clear flags
         self.regs.f = 0
@@ -545,7 +544,7 @@ class Opcodes(object):
         # set reg HL
         self.regs.set_hl(np.uint8(self.regs.sp + np.int8(e))) # type: ignore
         # clear flags 
-        self.f = 0
+        self.regs.f = 0
         # check for half carry
         if ((self.regs.sp & 0xF) + (e + 0xF)) > 0xF: self.regs.f |= self.regs.HALF_CARRY_FLAG
         # check for a carry
@@ -607,3 +606,98 @@ class Opcodes(object):
         # 16-bit absolute address is obtained by setting the most significant byte to 0xFF and the least
         # significant byte to the value of C, so the possible range is 0xFF00-0xFFFF.
         self.regs.a = self.mmu.read_byte(0xFF00 | self.regs.c)
+    
+    def _pop_rr(self, regs):
+        # Pops to the 16-bit register rr, data from the stack memory.
+        # This instruction does not do calculations that affect flags, but POP AF completely replaces the
+        # F register value, so all flags are changed based on the 8-bit data that is read from memory.
+        lsb = self.mmu.read_byte(self.regs.sp)
+        self.regs.sp += 1
+        msb = self.mmu.read_byte(self.regs.sp)
+        self.regs.sp += 1
+        nn = (msb << 8) | lsb
+        match regs:
+            case "BC": self.regs.set_bc(nn)
+            case "DE": self.regs.set_de(nn)
+            case "HL": self.regs.set_hl(nn)
+            case "AF": self.regs.set_af(nn)
+    
+    def _push_rr(self, regs):
+        # Push to the stack memory, data from the 16-bit register rr.
+        self.regs.set_sp(self.regs.sp - 1)
+        match regs:
+            case "BC":
+                self.mmu.write_byte(self.regs.sp, self.regs.b)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.c)
+            case "DE": 
+                self.mmu.write_byte(self.regs.sp, self.regs.d)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.e)
+            case "HL":
+                self.mmu.write_byte(self.regs.sp, self.regs.h)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.l)
+            case "AF":
+                self.mmu.write_byte(self.regs.sp, self.regs.a)
+                self.regs.set_sp(self.regs.sp - 1)
+                self.mmu.write_byte(self.regs.sp, self.regs.f)
+        
+    def _rlca(self):
+        # Rotate A left.
+        res = np.uint8((self.regs.a << 1) | (self.regs.a >> 7)) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG 
+        self.regs.a = res
+
+    def _rla(self):
+        # Rotate A left through Carry flag.
+        carry = 1 if self.regs.f & (1 << 4) else 0
+        res = np.uint8((self.regs.a << 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
+
+    def _rrca(self):
+        # Rotate A right. Old bit 0 to Carry flag.
+        res = np.uint8((self.regs.a >> 1) | (self.regs.a << 7)) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & 0x01) == 0x01: self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
+
+    def _rra(self):
+        # Rotate A right through Carry flag.
+        carry = (1 << 7) if self.regs.f & (1 << 4) else 0
+        res = np.uint8((self.regs.a << 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & 0x01) == 0x01: self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
+    
+    def _rst(self, n):
+        # Unconditional function call to the absolute fixed address defined by the opcode
+        # decrement SP
+        self.regs.set_sp(self.regs.sp - 1)
+        # write msb of pc to stack
+        self.mmu.read_byte(self.regs.sp, (self.regs.pc & 0xFF00) >> 8)
+        # decrement SP
+        self.regs.set_sp(self.regs.sp - 1)
+        # write lsb of pc to stack
+        self.mmu.read_byte(self.regs.sp, (self.regs.pc & 0x00FF))
+        # jump to n
+        self.regs.pc = n

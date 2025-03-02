@@ -39,6 +39,9 @@ class Register(object):
     def set_de(self, value):
         self.d = (value & 0xFF00) >> 8
         self.e = (value & 0x00FF)
+    def set_af(self, value):
+        self.a = (value & 0xFF00) >> 8
+        self.f = (value & 0x00FF)
     def set_sp(self, value): self.sp = value
     
     def read_pc_inc(self):
