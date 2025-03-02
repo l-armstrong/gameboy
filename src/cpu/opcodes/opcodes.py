@@ -331,7 +331,7 @@ class Opcodes(object):
     def _adc(self, value):
         # perform add operation on 8bit values, carry and reg a.
         # check if carry bit is set
-        carry = 1 if (self.regs.f >> 4) & 0xF else 0
+        carry = 1 if self.regs.f & (1 << 4) else 0
         res = self.regs.a + value + carry
         # clear flags
         self.regs.f = 0
@@ -364,7 +364,7 @@ class Opcodes(object):
 
     def _subc(self, value):
         # perform sub operation on 8bit values, carry and reg a.
-        carry = 1 if (self.regs.f >> 4) & 0xF else 0
+        carry = 1 if self.regs.f & (1 << 4) else 0
         res = self.regs.a - value - carry 
         # clear flags
         self.regs.f = 0
@@ -643,3 +643,48 @@ class Opcodes(object):
                 self.regs.set_sp(self.regs.sp - 1)
                 self.mmu.write_byte(self.regs.sp, self.regs.f)
         
+    def _rlca(self):
+        # Rotate A left.
+        res = np.uint8((self.regs.a << 1) | (self.regs.a >> 7)) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG 
+        self.regs.a = res
+
+    def _rla(self):
+        # Rotate A left through Carry flag.
+        carry = 1 if self.regs.f & (1 << 4) else 0
+        res = np.uint8((self.regs.a << 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
+
+    def _rrca(self):
+        # Rotate A right. Old bit 0 to Carry flag.
+        res = np.uint8((self.regs.a >> 1) | (self.regs.a << 7)) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & 0x01) == 0x01: self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
+
+    def _rra(self):
+        # Rotate A right through Carry flag.
+        carry = (1 << 7) if self.regs.f & (1 << 4) else 0
+        res = np.uint8((self.regs.a << 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        # check if res is zero
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        # check if carry
+        if (self.regs.a & 0x01) == 0x01: self.regs.f |= self.regs.CARRY_FLAG
+        self.regs.a = res
