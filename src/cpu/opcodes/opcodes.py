@@ -219,7 +219,7 @@ class Opcodes(object):
             0xBD: Opcode(0xBD, "CP A L", 1, 4, lambda: self._cp(self.regs.l)),
             0xBE: Opcode(0xBE, "CP A HL", 1, 8, lambda: self._cp(self.mmu.read_byte(self.regs.hl()))),
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
-            0xC0: Opcode(0xC0, "RET NZ", 1, 20),
+            0xC0: Opcode(0xC0, "RET NZ", 1, 20, lambda: self._ret_cc("NZ")),
             0xC1: Opcode(0xC1, "POP BC", 1, 12, lambda: self._pop_rr("BC")),
             0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
             0xC3: Opcode(0xC3, "JP a16", 3, 16, lambda: self._jp_nn()),
@@ -227,15 +227,15 @@ class Opcodes(object):
             0xC5: Opcode(0xC5, "PUSH BC", 1, 16, lambda: self._push_rr("BC")),
             0xC6: Opcode(0xC6, "ADD A n8", 2, 8, lambda: self._add(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xC7: Opcode(0xC7, "RST $00", 1, 16, lambda: self._rst(0x00)),
-            0xC8: Opcode(0xC8, "RET Z", 1, 20),
-            0xC9: Opcode(0xC9, "RET", 1, 16),
+            0xC8: Opcode(0xC8, "RET Z", 1, 20, lambda: self._ret_cc("Z")),
+            0xC9: Opcode(0xC9, "RET", 1, 16, lambda: self._ret()),
             0xCA: Opcode(0xCA, "JP Z a16", 3, 16),
             0xCB: Opcode(0xCB, "PREFIX", 1, 4),
             0xCC: Opcode(0xCC, "CALL Z a16", 3, 24, lambda: self._callcc_nn("Z")),
             0xCD: Opcode(0xCD, "CALL a16", 3, 24, lambda: self._call_nn()),
             0xCE: Opcode(0xCE, "ADC A n8", 2, 8, lambda: self._adc(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xCF: Opcode(0xCF, "RST $08", 1, 16, lambda: self._rst(0x08)),
-            0xD0: Opcode(0xD0, "RET NC", 1, 20),
+            0xD0: Opcode(0xD0, "RET NC", 1, 20, lambda: self._ret_cc("NC")),
             0xD1: Opcode(0xD1, "POP DE", 1, 12, lambda: self._pop_rr("DE")),
             0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
@@ -243,7 +243,7 @@ class Opcodes(object):
             0xD5: Opcode(0xD5, "PUSH DE", 1, 16, lambda: self._push_rr("DE")),
             0xD6: Opcode(0xD6, "SUB A n8", 2, 8, lambda: self._sub(self.mmu.read_byte(self.regs.read_pc_inc()))),
             0xD7: Opcode(0xD7, "RST $10", 1, 16, lambda: self._rst(0x10)),
-            0xD8: Opcode(0xD8, "RET C", 1, 20),
+            0xD8: Opcode(0xD8, "RET C", 1, 20, lambda: self._ret_cc("C")),
             0xD9: Opcode(0xD9, "RETI", 1, 16),
             0xDA: Opcode(0xDA, "JP C a16", 3, 16),
             0xDB: Opcode(0xDB, "ILLEGAL_DB", 1, 4),
@@ -788,12 +788,33 @@ class Opcodes(object):
         msb = self.mmu.read_byte(self.regs.pc)
         self.regs.pc += 1
         nn = (msb << 8) | lsb 
-        if ((cc == "NZ") and not (0x80 & (1 << 7)) == 0x80) or \
-            ((cc == "Z") and (0x80 & (1 << 7)) == 0x80) or \
-            ((cc == "NC") and not (0x10 & (1 << 4)) == 0x10) or \
-            ((cc == "C") and (0x10 & (1 << 4)) == 0x10):
+        if ((cc == "NZ") and not (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
+            ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
             self.regs.set_sp(self.regs.sp - 1)
             self.mmu.read_byte(self.regs.sp, (self.regs.pc & 0xFF00) >> 8)
             self.regs.set_sp(self.regs.sp - 1)
             self.mmu.read_byte(self.regs.sp, self.regs.pc &  0x00FF)
             self.regs.pc = nn
+    
+    def _ret_cc(self, cc):
+        # Conditional return from a function, depending on the condition cc.
+        if ((cc == "NZ") and not (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
+            ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
+            lsb = self.read_byte(self.regs.sp)
+            self.regs.set_sp(self.regs.sp + 1)
+            msb = self.read_byte(self.regs.sp)
+            self.regs.set_sp(self.regs.sp + 1)
+            self.regs.pc = (msb << 8) | lsb
+    
+    def _ret(self):
+        # Unconditional return from a function.
+        lsb = self.read_byte(self.regs.sp)
+        self.regs.set_sp(self.regs.sp + 1)
+        msb = self.read_byte(self.regs.sp)
+        self.regs.set_sp(self.regs.sp + 1)
+        self.regs.pc = (msb << 8) | lsb
+        
