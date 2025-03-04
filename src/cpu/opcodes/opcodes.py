@@ -221,7 +221,7 @@ class Opcodes(object):
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
             0xC0: Opcode(0xC0, "RET NZ", 1, 20, lambda: self._ret_cc("NZ")),
             0xC1: Opcode(0xC1, "POP BC", 1, 12, lambda: self._pop_rr("BC")),
-            0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
+            0xC2: Opcode(0xC2, "JP NZ a16", 3, 16, lambda: self._jpcc_nn("NZ")),
             0xC3: Opcode(0xC3, "JP a16", 3, 16, lambda: self._jp_nn()),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24, lambda: self._callcc_nn("NZ")),
             0xC5: Opcode(0xC5, "PUSH BC", 1, 16, lambda: self._push_rr("BC")),
@@ -229,7 +229,7 @@ class Opcodes(object):
             0xC7: Opcode(0xC7, "RST $00", 1, 16, lambda: self._rst(0x00)),
             0xC8: Opcode(0xC8, "RET Z", 1, 20, lambda: self._ret_cc("Z")),
             0xC9: Opcode(0xC9, "RET", 1, 16, lambda: self._ret()),
-            0xCA: Opcode(0xCA, "JP Z a16", 3, 16),
+            0xCA: Opcode(0xCA, "JP Z a16", 3, 16, lambda: self._jpcc_nn("Z")),
             0xCB: Opcode(0xCB, "PREFIX", 1, 4),
             0xCC: Opcode(0xCC, "CALL Z a16", 3, 24, lambda: self._callcc_nn("Z")),
             0xCD: Opcode(0xCD, "CALL a16", 3, 24, lambda: self._call_nn()),
@@ -237,7 +237,7 @@ class Opcodes(object):
             0xCF: Opcode(0xCF, "RST $08", 1, 16, lambda: self._rst(0x08)),
             0xD0: Opcode(0xD0, "RET NC", 1, 20, lambda: self._ret_cc("NC")),
             0xD1: Opcode(0xD1, "POP DE", 1, 12, lambda: self._pop_rr("DE")),
-            0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
+            0xD2: Opcode(0xD2, "JP NC a16", 3, 16, lambda: self._jpcc_nn("NC")),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24, lambda: self._callcc_nn("NC")),
             0xD5: Opcode(0xD5, "PUSH DE", 1, 16, lambda: self._push_rr("DE")),
@@ -245,7 +245,7 @@ class Opcodes(object):
             0xD7: Opcode(0xD7, "RST $10", 1, 16, lambda: self._rst(0x10)),
             0xD8: Opcode(0xD8, "RET C", 1, 20, lambda: self._ret_cc("C")),
             0xD9: Opcode(0xD9, "RETI", 1, 16),
-            0xDA: Opcode(0xDA, "JP C a16", 3, 16),
+            0xDA: Opcode(0xDA, "JP C a16", 3, 16, lambda: self._jpcc_nn("C")),
             0xDB: Opcode(0xDB, "ILLEGAL_DB", 1, 4),
             0xDC: Opcode(0xDC, "CALL C a16", 3, 24, lambda: self._callcc_nn("C")),
             0xDD: Opcode(0xDD, "ILLEGAL_DD", 1, 4),
@@ -751,6 +751,21 @@ class Opcodes(object):
         self.regs.pc += 1
         nn = (msb << 8) | lsb 
         self.regs.pc = nn
+
+    def _jpcc_nn(self, cc):
+        # Conditional jump to the absolute address specified by the 16-bit operand nn, depending on the
+        # condition cc.
+        # Note that the operand (absolute address) is read even when the condition is false!
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        nn = (msb << 8) | lsb 
+        if ((cc == "NZ") and not (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
+            ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
+            self.regs.pc = nn 
     
     def _add_sp_e(self):
         # Loads to the 16-bit SP register, 16-bit data calculated by adding the signed 8-bit operand e to
