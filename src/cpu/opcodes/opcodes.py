@@ -43,7 +43,7 @@ class Opcodes(object):
             0x0D: Opcode(0x0D, "DEC C", 1, 4, lambda: self._dec(REG_C)),
             0x0E: Opcode(0x0E, "LD C n8", 2, 8, lambda: self._ldn(REG_C)),
             0x0F: Opcode(0x0F, "RRCA", 1, 4, lambda: self._rrca()),
-            0x10: Opcode(0x10, "STOP n8", 2, 4),
+            0x10: Opcode(0x10, "STOP n8", 2, 4, lambda: self._exit("STOP")),
             0x11: Opcode(0x11, "LD DE n16", 3, 12, lambda: self._ld_rr_nn("DE")),
             0x12: Opcode(0x12, "LD DE A", 1, 8, lambda: self._ld_de_a()),
             0x13: Opcode(0x13, "INC DE", 1, 8, lambda: self._inc_rr("DE")),
@@ -74,7 +74,7 @@ class Opcodes(object):
             0x2C: Opcode(0x2C, "INC L", 1, 4, lambda: self._inc(REG_L)),
             0x2D: Opcode(0x2D, "DEC L", 1, 4, lambda: self._dec(REG_L)),
             0x2E: Opcode(0x2E, "LD L n8", 2, 8, lambda: self._ldn(REG_L)),
-            0x2F: Opcode(0x2F, "CPL", 1, 4),
+            0x2F: Opcode(0x2F, "CPL", 1, 4, lambda: self._cpl()),
             0x30: Opcode(0x30, "JR NC e8", 2, 12, self._jr_cc_e("NC")),
             0x31: Opcode(0x31, "LD SP n16", 3, 12, lambda: self._ld_rr_nn("SP")),
             0x32: Opcode(0x32, "LD HL- A", 1, 8, lambda: self._ld_hl_a_dec()),
@@ -82,7 +82,7 @@ class Opcodes(object):
             0x34: Opcode(0x34, "INC (HL)", 1, 12, lambda: self._inc_hl()),
             0x35: Opcode(0x35, "DEC HL", 1, 12, lambda: self._dec_hl()),
             0x36: Opcode(0x36, "LD HL n8", 2, 12, lambda: self._ldhl_n()),
-            0x37: Opcode(0x37, "SCF", 1, 4),
+            0x37: Opcode(0x37, "SCF", 1, 4, lambda: self._scf()),
             0x38: Opcode(0x38, "JR C e8", 2, 12, self._jr_cc_e("C")),
             0x39: Opcode(0x39, "ADD HL SP", 1, 8, lambda: self._addhl_rr("SP")),
             0x3A: Opcode(0x3A, "LD A HL-", 1, 8, lambda: self._ld_a_hl_dec()),
@@ -90,7 +90,7 @@ class Opcodes(object):
             0x3C: Opcode(0x3C, "INC A", 1, 4, lambda: self._inc(REG_A)),
             0x3D: Opcode(0x3D, "DEC A", 1, 4, lambda: self._dec(REG_A)),
             0x3E: Opcode(0x3E, "LD A n8", 2, 8, lambda: self._ldn(REG_A)),
-            0x3F: Opcode(0x3F, "CCF", 1, 4),
+            0x3F: Opcode(0x3F, "CCF", 1, 4, lambda: self._ccf()),
             0x40: Opcode(0x40, "LD B B", 1, 4, lambda: self._ld(REG_B, REG_B)),
             0x41: Opcode(0x41, "LD B C", 1, 4, lambda: self._ld(REG_B, REG_C)),
             0x42: Opcode(0x42, "LD B D", 1, 4, lambda: self._ld(REG_B, REG_D)),
@@ -145,7 +145,7 @@ class Opcodes(object):
             0x73: Opcode(0x73, "LD HL E", 1, 8, lambda: self._ldhl_r(REG_E)),
             0x74: Opcode(0x74, "LD HL H", 1, 8, lambda: self._ldhl_r(REG_H)),
             0x75: Opcode(0x75, "LD HL L", 1, 8, lambda: self._ldhl_r(REG_L)),
-            0x76: Opcode(0x76, "HALT", 1, 4),
+            0x76: Opcode(0x76, "HALT", 1, 4, lambda: ()),
             0x77: Opcode(0x77, "LD HL A", 1, 8, lambda: self._ldhl_r(REG_A)),
             0x78: Opcode(0x78, "LD A B", 1, 4, lambda: self._ld(REG_A, REG_B)),
             0x79: Opcode(0x79, "LD A C", 1, 4, lambda: self._ld(REG_A, REG_C)),
@@ -848,3 +848,33 @@ class Opcodes(object):
             ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
             ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
             self.regs.pc = self.regs.pc + np.int8(e) # type: ignore 
+
+    def _cpl(self):
+        # Flips all the bits in the 8-bit A register, and sets the N and H flags.
+        self.regs.a = ~self.regs.a
+        # clear flags
+        self.regs.f = 0
+        # set N flag 
+        self.regs.f |= self.regs.SUB_FLAG
+        # set H flags
+        self.regs.f |= self.regs.HALF_CARRY_FLAG
+    
+    def _scf(self):
+        # Sets the carry flag, and clears the N and H flags.
+        # clear flags
+        self.regs.f = 0
+        # set carry 
+        self.regs.f |= self.regs.CARRY_FLAG
+    
+    def _ccf(self):
+        # Flips the carry flag, and clears the N and H flags
+        # turn of N
+        self.regs.f &= ~(1 << 6)
+        # turn of H
+        self.regs.f &= ~(1 << 5)
+        # flip C 
+        self.regs.f ^= (1 << 4)
+    
+    def _exit(self, kind):
+        print(f"ERROR: {kind}")
+        exit(1)
