@@ -43,7 +43,7 @@ class Opcodes(object):
             0x0D: Opcode(0x0D, "DEC C", 1, 4, lambda: self._dec(REG_C)),
             0x0E: Opcode(0x0E, "LD C n8", 2, 8, lambda: self._ldn(REG_C)),
             0x0F: Opcode(0x0F, "RRCA", 1, 4, lambda: self._rrca()),
-            0x10: Opcode(0x10, "STOP n8", 2, 4),
+            0x10: Opcode(0x10, "STOP n8", 2, 4, lambda: self._exit("STOP")),
             0x11: Opcode(0x11, "LD DE n16", 3, 12, lambda: self._ld_rr_nn("DE")),
             0x12: Opcode(0x12, "LD DE A", 1, 8, lambda: self._ld_de_a()),
             0x13: Opcode(0x13, "INC DE", 1, 8, lambda: self._inc_rr("DE")),
@@ -51,7 +51,7 @@ class Opcodes(object):
             0x15: Opcode(0x15, "DEC D", 1, 4, lambda: self._dec(REG_D)),
             0x16: Opcode(0x16, "LD D n8", 2, 8, lambda: self._ldn(REG_D)),
             0x17: Opcode(0x17, "RLA", 1, 4, lambda: self._rla()),
-            0x18: Opcode(0x18, "JR e8", 2, 12),
+            0x18: Opcode(0x18, "JR e8", 2, 12, lambda: self._jr_e()),
             0x19: Opcode(0x19, "ADD HL DE", 1, 8, lambda: self._addhl_rr("DE")),
             0x1A: Opcode(0x1A, "LD A DE", 1, 8, lambda: self._ld_a_de()),
             0x1B: Opcode(0x1B, "DEC DE", 1, 8, lambda: self._dec_rr("DE")),
@@ -59,7 +59,7 @@ class Opcodes(object):
             0x1D: Opcode(0x1D, "DEC E", 1, 4, lambda: self._dec(REG_E)),
             0x1E: Opcode(0x1E, "LD E n8", 2, 8, lambda: self._ldn(REG_E)),
             0x1F: Opcode(0x1F, "RRA", 1, 4, lambda: self._rra()),
-            0x20: Opcode(0x20, "JR NZ e8", 2, 12),
+            0x20: Opcode(0x20, "JR NZ e8", 2, 12, lambda: self._jr_cc_e("NZ")),
             0x21: Opcode(0x21, "LD HL n16", 3, 12, lambda: self._ld_rr_nn("HL")),
             0x22: Opcode(0x22, "LD HL+ A", 1, 8, lambda: self._ld_hl_a_inc()),
             0x23: Opcode(0x23, "INC HL", 1, 8, lambda: self._inc_rr("HL")),
@@ -67,30 +67,30 @@ class Opcodes(object):
             0x25: Opcode(0x25, "DEC H", 1, 4, lambda: self._dec(REG_H)),
             0x26: Opcode(0x26, "LD H n8", 2, 8, lambda: self._ldn(REG_H)),
             0x27: Opcode(0x27, "DAA", 1, 4),
-            0x28: Opcode(0x28, "JR Z e8", 2, 12),
+            0x28: Opcode(0x28, "JR Z e8", 2, 12, self._jr_cc_e("Z")),
             0x29: Opcode(0x29, "ADD HL HL", 1, 8, lambda: self._addhl_rr("HL")),
             0x2A: Opcode(0x2A, "LD A HL+", 1, 8, lambda: self._ld_a_hl_inc()),
             0x2B: Opcode(0x2B, "DEC HL", 1, 8, lambda: self._dec_rr("HL")),
             0x2C: Opcode(0x2C, "INC L", 1, 4, lambda: self._inc(REG_L)),
             0x2D: Opcode(0x2D, "DEC L", 1, 4, lambda: self._dec(REG_L)),
             0x2E: Opcode(0x2E, "LD L n8", 2, 8, lambda: self._ldn(REG_L)),
-            0x2F: Opcode(0x2F, "CPL", 1, 4),
-            0x30: Opcode(0x30, "JR NC e8", 2, 12),
+            0x2F: Opcode(0x2F, "CPL", 1, 4, lambda: self._cpl()),
+            0x30: Opcode(0x30, "JR NC e8", 2, 12, self._jr_cc_e("NC")),
             0x31: Opcode(0x31, "LD SP n16", 3, 12, lambda: self._ld_rr_nn("SP")),
             0x32: Opcode(0x32, "LD HL- A", 1, 8, lambda: self._ld_hl_a_dec()),
             0x33: Opcode(0x33, "INC SP", 1, 8, lambda: self._inc_rr("SP")),
             0x34: Opcode(0x34, "INC (HL)", 1, 12, lambda: self._inc_hl()),
             0x35: Opcode(0x35, "DEC HL", 1, 12, lambda: self._dec_hl()),
             0x36: Opcode(0x36, "LD HL n8", 2, 12, lambda: self._ldhl_n()),
-            0x37: Opcode(0x37, "SCF", 1, 4),
-            0x38: Opcode(0x38, "JR C e8", 2, 12),
+            0x37: Opcode(0x37, "SCF", 1, 4, lambda: self._scf()),
+            0x38: Opcode(0x38, "JR C e8", 2, 12, self._jr_cc_e("C")),
             0x39: Opcode(0x39, "ADD HL SP", 1, 8, lambda: self._addhl_rr("SP")),
             0x3A: Opcode(0x3A, "LD A HL-", 1, 8, lambda: self._ld_a_hl_dec()),
             0x3B: Opcode(0x3B, "DEC SP", 1, 8, lambda: self._dec_rr("SP")),
             0x3C: Opcode(0x3C, "INC A", 1, 4, lambda: self._inc(REG_A)),
             0x3D: Opcode(0x3D, "DEC A", 1, 4, lambda: self._dec(REG_A)),
             0x3E: Opcode(0x3E, "LD A n8", 2, 8, lambda: self._ldn(REG_A)),
-            0x3F: Opcode(0x3F, "CCF", 1, 4),
+            0x3F: Opcode(0x3F, "CCF", 1, 4, lambda: self._ccf()),
             0x40: Opcode(0x40, "LD B B", 1, 4, lambda: self._ld(REG_B, REG_B)),
             0x41: Opcode(0x41, "LD B C", 1, 4, lambda: self._ld(REG_B, REG_C)),
             0x42: Opcode(0x42, "LD B D", 1, 4, lambda: self._ld(REG_B, REG_D)),
@@ -145,7 +145,7 @@ class Opcodes(object):
             0x73: Opcode(0x73, "LD HL E", 1, 8, lambda: self._ldhl_r(REG_E)),
             0x74: Opcode(0x74, "LD HL H", 1, 8, lambda: self._ldhl_r(REG_H)),
             0x75: Opcode(0x75, "LD HL L", 1, 8, lambda: self._ldhl_r(REG_L)),
-            0x76: Opcode(0x76, "HALT", 1, 4),
+            0x76: Opcode(0x76, "HALT", 1, 4, lambda: ()),
             0x77: Opcode(0x77, "LD HL A", 1, 8, lambda: self._ldhl_r(REG_A)),
             0x78: Opcode(0x78, "LD A B", 1, 4, lambda: self._ld(REG_A, REG_B)),
             0x79: Opcode(0x79, "LD A C", 1, 4, lambda: self._ld(REG_A, REG_C)),
@@ -221,7 +221,7 @@ class Opcodes(object):
             0xBF: Opcode(0xBF, "CP A A", 1, 4, lambda: self._cp(self.regs.a)),
             0xC0: Opcode(0xC0, "RET NZ", 1, 20, lambda: self._ret_cc("NZ")),
             0xC1: Opcode(0xC1, "POP BC", 1, 12, lambda: self._pop_rr("BC")),
-            0xC2: Opcode(0xC2, "JP NZ a16", 3, 16),
+            0xC2: Opcode(0xC2, "JP NZ a16", 3, 16, lambda: self._jpcc_nn("NZ")),
             0xC3: Opcode(0xC3, "JP a16", 3, 16, lambda: self._jp_nn()),
             0xC4: Opcode(0xC4, "CALL NZ a16", 3, 24, lambda: self._callcc_nn("NZ")),
             0xC5: Opcode(0xC5, "PUSH BC", 1, 16, lambda: self._push_rr("BC")),
@@ -229,7 +229,7 @@ class Opcodes(object):
             0xC7: Opcode(0xC7, "RST $00", 1, 16, lambda: self._rst(0x00)),
             0xC8: Opcode(0xC8, "RET Z", 1, 20, lambda: self._ret_cc("Z")),
             0xC9: Opcode(0xC9, "RET", 1, 16, lambda: self._ret()),
-            0xCA: Opcode(0xCA, "JP Z a16", 3, 16),
+            0xCA: Opcode(0xCA, "JP Z a16", 3, 16, lambda: self._jpcc_nn("Z")),
             0xCB: Opcode(0xCB, "PREFIX", 1, 4),
             0xCC: Opcode(0xCC, "CALL Z a16", 3, 24, lambda: self._callcc_nn("Z")),
             0xCD: Opcode(0xCD, "CALL a16", 3, 24, lambda: self._call_nn()),
@@ -237,7 +237,7 @@ class Opcodes(object):
             0xCF: Opcode(0xCF, "RST $08", 1, 16, lambda: self._rst(0x08)),
             0xD0: Opcode(0xD0, "RET NC", 1, 20, lambda: self._ret_cc("NC")),
             0xD1: Opcode(0xD1, "POP DE", 1, 12, lambda: self._pop_rr("DE")),
-            0xD2: Opcode(0xD2, "JP NC a16", 3, 16),
+            0xD2: Opcode(0xD2, "JP NC a16", 3, 16, lambda: self._jpcc_nn("NC")),
             0xD3: Opcode(0xD3, "ILLEGAL_D3", 1, 4),
             0xD4: Opcode(0xD4, "CALL NC a16", 3, 24, lambda: self._callcc_nn("NC")),
             0xD5: Opcode(0xD5, "PUSH DE", 1, 16, lambda: self._push_rr("DE")),
@@ -245,7 +245,7 @@ class Opcodes(object):
             0xD7: Opcode(0xD7, "RST $10", 1, 16, lambda: self._rst(0x10)),
             0xD8: Opcode(0xD8, "RET C", 1, 20, lambda: self._ret_cc("C")),
             0xD9: Opcode(0xD9, "RETI", 1, 16),
-            0xDA: Opcode(0xDA, "JP C a16", 3, 16),
+            0xDA: Opcode(0xDA, "JP C a16", 3, 16, lambda: self._jpcc_nn("C")),
             0xDB: Opcode(0xDB, "ILLEGAL_DB", 1, 4),
             0xDC: Opcode(0xDC, "CALL C a16", 3, 24, lambda: self._callcc_nn("C")),
             0xDD: Opcode(0xDD, "ILLEGAL_DD", 1, 4),
@@ -443,7 +443,6 @@ class Opcodes(object):
             case "DE": self.regs.set_de(self.regs.de() - 1)
             case "HL": self.regs.set_hl(self.regs.hl() - 1)
             case "SP": self.regs.set_sp(self.regs.sp - 1)
-
 
     def _inc(self, reg):
         # increments data in the 8-bit register r.
@@ -752,6 +751,21 @@ class Opcodes(object):
         self.regs.pc += 1
         nn = (msb << 8) | lsb 
         self.regs.pc = nn
+
+    def _jpcc_nn(self, cc):
+        # Conditional jump to the absolute address specified by the 16-bit operand nn, depending on the
+        # condition cc.
+        # Note that the operand (absolute address) is read even when the condition is false!
+        lsb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        msb = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc += 1
+        nn = (msb << 8) | lsb 
+        if ((cc == "NZ") and not (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
+            ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
+            self.regs.pc = nn 
     
     def _add_sp_e(self):
         # Loads to the 16-bit SP register, 16-bit data calculated by adding the signed 8-bit operand e to
@@ -804,17 +818,63 @@ class Opcodes(object):
             ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
             ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
             ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
-            lsb = self.read_byte(self.regs.sp)
+            lsb = self.mmu.read_byte(self.regs.sp)
             self.regs.set_sp(self.regs.sp + 1)
-            msb = self.read_byte(self.regs.sp)
+            msb = self.mmu.read_byte(self.regs.sp)
             self.regs.set_sp(self.regs.sp + 1)
             self.regs.pc = (msb << 8) | lsb
     
     def _ret(self):
         # Unconditional return from a function.
-        lsb = self.read_byte(self.regs.sp)
+        lsb = self.mmu.read_byte(self.regs.sp)
         self.regs.set_sp(self.regs.sp + 1)
-        msb = self.read_byte(self.regs.sp)
+        msb = self.mmu.read_byte(self.regs.sp)
         self.regs.set_sp(self.regs.sp + 1)
         self.regs.pc = (msb << 8) | lsb
-        
+    
+    def _jr_e(self):
+        # Unconditional jump to the relative address specified by the signed 8-bit operand e.
+        e = self.mmu.read_byte(self.regs.pc)
+        self.regs.pc = self.regs.pc + 1 
+        self.regs.pc = self.regs.pc + np.int8(e) # type: ignore  
+    
+    def _jr_cc_e(self, cc):
+        # Conditional jump to the relative address specified by the signed 8-bit operand e, depending on
+        # the condition cc.
+        # Note that the operand (relative address offset) is read even when the condition is false!
+        e = self.mmu.read_byte(self.regs.pc)
+        if ((cc == "NZ") and not (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "Z") and (self.regs.f & (1 << 7)) == 0x80) or \
+            ((cc == "NC") and not (self.regs.f & (1 << 4)) == 0x10) or \
+            ((cc == "C") and (self.regs.f & (1 << 4)) == 0x10):
+            self.regs.pc = self.regs.pc + np.int8(e) # type: ignore 
+
+    def _cpl(self):
+        # Flips all the bits in the 8-bit A register, and sets the N and H flags.
+        self.regs.a = ~self.regs.a
+        # clear flags
+        self.regs.f = 0
+        # set N flag 
+        self.regs.f |= self.regs.SUB_FLAG
+        # set H flags
+        self.regs.f |= self.regs.HALF_CARRY_FLAG
+    
+    def _scf(self):
+        # Sets the carry flag, and clears the N and H flags.
+        # clear flags
+        self.regs.f = 0
+        # set carry 
+        self.regs.f |= self.regs.CARRY_FLAG
+    
+    def _ccf(self):
+        # Flips the carry flag, and clears the N and H flags
+        # turn of N
+        self.regs.f &= ~(1 << 6)
+        # turn of H
+        self.regs.f &= ~(1 << 5)
+        # flip C 
+        self.regs.f ^= (1 << 4)
+    
+    def _exit(self, kind):
+        print(f"ERROR: {kind}")
+        exit(1)
