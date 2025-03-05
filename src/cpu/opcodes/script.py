@@ -20,8 +20,8 @@ with open("Opcodes.json") as f:
     #     print(f'{k}: Opcode({k}, {m}, {b}, {c}),')
     #     if count == 4: exit(1)
 
-with open("dump_opcodes", "w") as f:
-    unprefixed = opcodes["unprefixed"]
+with open("cb_dump_opcodes", "w") as f:
+    unprefixed = opcodes["cbprefixed"]
     f.write("{")
     for k, v in unprefixed.items():
         m = unprefixed[k]['mnemonic']
@@ -33,7 +33,7 @@ with open("dump_opcodes", "w") as f:
                 operands += (op['name']) + ' '
         if operands:
             m += ' ' + operands.rstrip()
-        f.write(f'\t{k}: Opcode({k}, "{m}", {b}, {c}),\n')
+        f.write(f'    {k}: Opcode({k}, "{m}", {b}, {c}),\n')
     f.write("}")
 
 # with open("dump_opcodes") as f:
