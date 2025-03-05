@@ -283,3 +283,106 @@ class CB_Opcodes(object):
             0xFE: Opcode(0xFE, "SET 7 HL", 2, 16),
             0xFF: Opcode(0xFF, "SET 7 A", 2, 8),
         }        
+    
+    def _rlc(self, reg):
+        # rotate reg val to left (circular)
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8((val << 1) | (val >> 7)) # type: ignore
+        # clear flahs
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+    
+    def _rrc(self, reg):
+        # rotate reg val to right (circular)
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8((val >> 1) | (val << 7)) # type: ignore
+        # clear flahs
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & 1) == 0x1: self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+
+    def _rl(self, reg): 
+        # rotate left
+        carry = 1 if self.regs.f & (1 << 4) else 0
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8((val << 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+
+    def _rr(self, reg):
+        # rotate left
+        carry = (1 << 7) if self.regs.f & (1 << 4) else 0
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8((val >> 1) | carry) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & 0x1) == 0x1: self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+    
+    def _sra(self, reg):
+        # shift right arithmetic
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8((val >> 1) | (val & 0x80)) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & 0x1) == 0x1: self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+
+    def _sla(self, reg):
+        # shift left arithmetic 
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8(val << 1) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & (1 << 7)) == (1 << 7): self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+
+    def _srl(self, reg):
+        # shift right logical 
+        val = getattr(self, reg)
+        # rotate bits
+        res = np.uint8(val >> 1) # type: ignore
+        # clear flags
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        if (val & 0x1) != 0x0: self.regs.f |= self.regs.CARRY_FLAG
+        setattr(self, val, res)
+
+    def _swap(self, reg):
+        # swap nibbles
+        val = getattr(self, reg)
+        res = np.uint8(((val & 0xF0) >> 4) | ((val & 0x0F) << 4)) # type: ignore
+        self.regs.f = 0
+        if (not res): self.regs.f |= self.regs.ZERO_FLAG
+        setattr(self, val, res)
+    
+    def _set(self, reg, pos):
+        # set bit pos in reg val
+        setattr(self, reg, getattr(self, reg) | (1 << pos))
+    
+    def _res(self, reg, pos):
+        # reset bit pos in reg val
+        setattr(self, reg, getattr(self, reg) & ~(1 << pos))
+    
+    def _bit(self, reg, pos):
+        # test bit
+        val = getattr(self, reg)
+        self.regs.f |= self.regs.HALF_CARRY_FLAG
+        if ((val >> pos) & 0x1) == 0: self.regs.f |= self.regs.ZERO_FLAG
+        # turn off N
+        self.regs.f &= ~(1 << 6)

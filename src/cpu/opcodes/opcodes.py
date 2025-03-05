@@ -868,9 +868,9 @@ class Opcodes(object):
     
     def _ccf(self):
         # Flips the carry flag, and clears the N and H flags
-        # turn of N
+        # turn off N
         self.regs.f &= ~(1 << 6)
-        # turn of H
+        # turn off H
         self.regs.f &= ~(1 << 5)
         # flip C 
         self.regs.f ^= (1 << 4)
