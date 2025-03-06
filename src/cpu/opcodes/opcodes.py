@@ -888,7 +888,7 @@ class Opcodes(object):
         else:
             if carry or (self.regs.a > 0x99):
                 self.regs.a = self.regs.a + 0x60
-                self.regs.f |= self.regs.CARRY_FLA
+                self.regs.f |= self.regs.CARRY_FLAG
             if half or ((self.regs.a & 0xF) > 0x9):
                 self.regs.a = self.regs.a + 0x6
         if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
