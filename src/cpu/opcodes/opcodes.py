@@ -66,7 +66,7 @@ class Opcodes(object):
             0x24: Opcode(0x24, "INC H", 1, 4, lambda: self._inc(REG_H)),
             0x25: Opcode(0x25, "DEC H", 1, 4, lambda: self._dec(REG_H)),
             0x26: Opcode(0x26, "LD H n8", 2, 8, lambda: self._ldn(REG_H)),
-            0x27: Opcode(0x27, "DAA", 1, 4),
+            0x27: Opcode(0x27, "DAA", 1, 4, lambda: self._daa()),
             0x28: Opcode(0x28, "JR Z e8", 2, 12, lambda: self._jr_cc_e("Z")),
             0x29: Opcode(0x29, "ADD HL HL", 1, 8, lambda: self._addhl_rr("HL")),
             0x2A: Opcode(0x2A, "LD A HL+", 1, 8, lambda: self._ld_a_hl_inc()),
@@ -614,7 +614,7 @@ class Opcodes(object):
         msb = self.mmu.read_byte(self.regs.pc)
         self.regs.pc += 1
         nn = (msb << 8) | lsb
-        self.regs.a = self.read_byte(nn)
+        self.regs.a = self.mmu.read_byte(nn)
     
     def _ldhn_a(self):
         # Load to the address specified by the 8-bit immediate data n, data from the 8-bit A register. The
@@ -874,6 +874,26 @@ class Opcodes(object):
         self.regs.f &= ~(1 << 5)
         # flip C 
         self.regs.f ^= (1 << 4)
+    
+    def _daa(self):
+        # Decimal adjust accumulator
+        carry = 1 if self.regs.f & (1 << 4) else 0
+        half = 1 if self.regs.f & (1 << 5) else 0
+        sub = 1 if self.regs.f & (1 << 6) else 0
+        if sub:
+            if carry:
+                self.regs.a = self.regs.a - 0x60
+            if half:
+                self.regs.a = self.regs.a - 0x6
+        else:
+            if carry or (self.regs.a > 0x99):
+                self.regs.a = self.regs.a + 0x60
+                self.regs.f |= self.regs.CARRY_FLA
+            if half or ((self.regs.a & 0xF) > 0x9):
+                self.regs.a = self.regs.a + 0x6
+        if self.regs.a == 0: self.regs.f |= self.regs.ZERO_FLAG
+        else: self.regs.f &= ~(1 << 7)
+        self.regs.f &= ~(1 << 5)
     
     def _exit(self, kind):
         print(f"ERROR: {kind}")
